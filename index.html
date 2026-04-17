@@ -525,6 +525,13 @@
       <div class="section-label" style="margin-bottom:4px;">End of day wrap</div>
       <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">Capture what happened, what didn't, and what tomorrow needs. Your best thinking happens while today is still fresh.</p>
 
+      <!-- Day plan reconciliation -->
+      <div id="plan-reconcile-section" style="display:none;margin-bottom:18px;">
+        <div class="section-label" style="margin-bottom:8px;">Today's planned blocks — what actually got done?</div>
+        <div id="plan-reconcile-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <p style="font-size:12px;color:var(--text3);margin-top:8px;">Check what you completed. Unchecked blocks will be flagged for tomorrow.</p>
+      </div>
+
       <!-- Incomplete task rollover -->
       <div id="rollover-section" style="margin-bottom:18px;">
         <div class="section-label" style="margin-bottom:8px;">Incomplete tasks — choose what rolls over</div>
@@ -534,8 +541,9 @@
 
       <!-- EOD brain dump -->
       <div class="section-label" style="margin-bottom:8px;">Brain dump — how did the day go?</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Skip anything already captured above — focus on what came up unexpectedly, new ideas, and what tomorrow needs.</p>
       <div class="textarea-wrap">
-        <textarea id="eod-dump" placeholder="e.g. Got the Marcus deal moving — need to follow up Friday... didn't get to the 501c3 research, that's priority one tomorrow... had a great idea about automating the grant research process..." style="min-height:110px;"></textarea>
+        <textarea id="eod-dump" placeholder="e.g. Client call ran over so novation research got cut short... great idea came up about systemizing intake... feeling good about tomorrow..." style="min-height:90px;"></textarea>
         <button class="mic-btn" id="eod-mic-btn" onclick="toggleEodVoice()" title="Dictate" style="top:10px;">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z" fill="currentColor"/><path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
@@ -639,6 +647,17 @@ function init() {
   renderTasks();
   loadCalendar();
   initVoice();
+  // Restore today's plan if it exists
+  const savedPlan = localStorage.getItem("dcc_today_plan");
+  if (savedPlan) {
+    const { date, plan } = JSON.parse(savedPlan);
+    if (date === todayStr() && plan) {
+      planData = plan;
+      renderPlan();
+      document.getElementById("push-all-btn").style.display = "inline-block";
+      document.getElementById("push-pick-btn").style.display = "inline-block";
+    }
+  }
   const tomorrowCtx = localStorage.getItem("dcc_tomorrow_context");
   const savedDate = localStorage.getItem("dcc_last_date") || "";
   if (tomorrowCtx && savedDate === todayStr()) {
@@ -1010,6 +1029,8 @@ async function generatePlan() {
       clean = clean.substring(0, cutAt) + "]";
     }
     planData = JSON.parse(clean);
+    // Save today's plan so EOD can reconcile it
+    localStorage.setItem("dcc_today_plan", JSON.stringify({ date: todayStr(), plan: planData }));
     renderPlan();
     document.getElementById("push-all-btn").style.display = "inline-block";
     document.getElementById("push-pick-btn").style.display = "inline-block";
@@ -1181,6 +1202,32 @@ let eodRecognition = null;
 let eodListening = false;
 
 function renderRolloverList() {
+  // Render plan reconciliation
+  const savedPlan = localStorage.getItem("dcc_today_plan");
+  const reconcileSection = document.getElementById("plan-reconcile-section");
+  const reconcileList = document.getElementById("plan-reconcile-list");
+  if (savedPlan) {
+    const { date, plan } = JSON.parse(savedPlan);
+    if (date === todayStr() && plan && plan.length) {
+      reconcileSection.style.display = "block";
+      const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+      reconcileList.innerHTML = plan.map((b, i) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);">
+          <input type="checkbox" id="reconcile-${i}" checked style="width:16px;height:16px;cursor:pointer;" />
+          <div style="width:3px;height:28px;border-radius:2px;background:${colors[b.biz]||"var(--text3)"};flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;">${b.title}</div>
+            <div style="font-size:11px;color:var(--text2);">${b.time}</div>
+          </div>
+        </div>`).join("");
+    } else {
+      reconcileSection.style.display = "none";
+    }
+  } else {
+    reconcileSection.style.display = "none";
+  }
+
+  // Render incomplete task rollover
   const incomplete = tasks.filter(t => !t.done);
   const list = document.getElementById("rollover-task-list");
   if (!incomplete.length) {
@@ -1199,7 +1246,6 @@ function renderRolloverList() {
 
 async function runEodWrap() {
   const dump = document.getElementById("eod-dump").value.trim();
-  if (!dump) { alert("Tell me how the day went first!"); return; }
   if (eodListening && eodRecognition) eodRecognition.stop();
   const out = document.getElementById("eod-out");
   const eodText = document.getElementById("eod-text");
@@ -1211,23 +1257,42 @@ async function runEodWrap() {
   const completedList = done.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text}`).join("\n") || "None";
   const incompleteList = incomplete.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text} (${t.pri})`).join("\n") || "None";
 
+  // Build plan reconciliation context
+  let planReconcileContext = "";
+  const savedPlan = localStorage.getItem("dcc_today_plan");
+  if (savedPlan) {
+    const { date, plan } = JSON.parse(savedPlan);
+    if (date === todayStr() && plan && plan.length) {
+      const completedBlocks = plan.filter((b, i) => {
+        const cb = document.getElementById("reconcile-" + i);
+        return cb && cb.checked;
+      });
+      const missedBlocks = plan.filter((b, i) => {
+        const cb = document.getElementById("reconcile-" + i);
+        return cb && !cb.checked;
+      });
+      if (completedBlocks.length || missedBlocks.length) {
+        planReconcileContext = `\nToday's planned time blocks — completed:\n${completedBlocks.map(b=>`- ${b.time}: ${b.title}`).join("\n") || "None"}\n\nToday's planned time blocks — NOT completed (need follow-up):\n${missedBlocks.map(b=>`- ${b.time}: ${b.title} — ${b.desc}`).join("\n") || "None"}`;
+      }
+    }
+  }
+
   const sys = `You are an AI chief of staff helping an entrepreneur close out their day and set up tomorrow. They run ${BUSINESSES.length} businesses/roles:
 ${bizContext()}
 
-Given their end-of-day brain dump and task summary, provide:
-1. A brief acknowledgment of what got done today (1-2 sentences, specific)
-2. Key wins or insights from what they shared
-3. Tomorrow's top 3 priorities across all businesses (be specific, not generic)
+Given their end-of-day data, provide:
+1. A brief acknowledgment of what got done today (specific, not generic)
+2. Key wins or insights — including anything from missed blocks that needs attention
+3. Tomorrow's top 3 priorities — factor in missed time blocks as high priority
 4. One sharp strategic note to sleep on
 
-Be warm but direct. Keep it concise — this is a wrap, not a report.`;
+Be warm but direct. Keep it concise.`;
 
-  const userMsg = `Today's completed tasks:\n${completedList}\n\nIncomplete tasks:\n${incompleteList}\n\nEnd of day brain dump:\n${dump}`;
+  const userMsg = `Completed tasks:\n${completedList}\n\nIncomplete tasks:\n${incompleteList}${planReconcileContext}${dump ? `\n\nBrain dump:\n${dump}` : ""}`;
 
   try {
     const response = await callClaude(sys, userMsg, 1000);
     eodText.textContent = response;
-    // Store tomorrow's priorities for morning pre-population
     localStorage.setItem("dcc_tomorrow_context", response);
   } catch(e) {
     eodText.textContent = "Error: " + e.message;
@@ -1259,6 +1324,8 @@ function startNewDay() {
   saveTasks();
 
   // Reset UI state
+  // Clear today's plan reconciliation
+  localStorage.removeItem("dcc_today_plan");
   planData = [];
   lastCheckinOutput = "";
   document.getElementById("brain-dump").value = "";
