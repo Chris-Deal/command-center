@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Daily Command Center</title>
+
+<!-- PWA & iOS home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Command" />
+<meta name="theme-color" content="#eeedea" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1c1c1a" media="(prefers-color-scheme: dark)" />
+<link rel="manifest" href="manifest.json" />
+
+<!-- iOS splash / icon (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231a1a1a'/%3E%3Ctext x='90' y='115' font-size='80' text-anchor='middle' font-family='system-ui' fill='white'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f4f1; --bg3: #eeedea;
+    --text: #1a1a1a; --text2: #6b6a67; --text3: #a09f9c;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.25);
+    --radius: 10px; --radius-lg: 14px;
+    --blue: #378ADD; --blue-dark: #185FA5; --blue-light: #E6F1FB;
+    --green: #1D9E75; --green-dark: #0F6E56; --green-light: #E1F5EE;
+    --coral: #D85A30; --coral-dark: #993C1D; --coral-light: #FAECE7;
+    --pink: #D4537E; --pink-dark: #993556; --pink-light: #FBEAF0;
+    --amber-light: #FAEEDA; --amber-dark: #854F0B;
+    --success-light: #EAF3DE; --success-dark: #3B6D11;
+    --font: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #f0ede8; --text2: #a09f9c; --text3: #6b6a67;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.22);
+      --blue-light: #0c2a45; --green-light: #04201a;
+      --coral-light: #2e1208; --pink-light: #2a0f1c;
+      --amber-light: #2a1a04; --success-light: #0e1f06;
+    }
+  }
+  body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  /* Mobile tab bar — sticky at bottom on small screens */
+  @media (max-width: 600px) {
+    body { padding: 16px 12px 80px; padding-top: max(16px, env(safe-area-inset-top)); }
+    .tab-row { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-top: 0.5px solid var(--border); padding: 8px 8px max(8px, env(safe-area-inset-bottom)); margin: 0; z-index: 100; justify-content: space-around; gap: 2px; }
+    .tab { flex: 1; text-align: center; font-size: 11px; padding: 6px 4px; border-radius: 8px; border: none; }
+    .biz-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .header h1 { font-size: 18px; }
+    .add-row { flex-direction: column; }
+    .add-row input { width: 100%; }
+    .btn-row { flex-direction: column; }
+    .btn-row button { width: 100%; text-align: center; }
+    .push-row { flex-direction: column; }
+    .push-row button { width: 100%; }
+    textarea { font-size: 16px; } /* prevents iOS zoom on focus */
+    input[type="text"], input[type="password"], select { font-size: 16px; } /* same */
+  }
+  .app { max-width: 820px; margin: 0 auto; }
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .header p { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .date-badge { font-size: 12px; color: var(--text2); background: var(--bg2); border: 0.5px solid var(--border); border-radius: 20px; padding: 4px 12px; white-space: nowrap; }
+  .gcal-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .gcal-left p { font-size: 14px; font-weight: 500; }
+  .gcal-left span { font-size: 12px; color: var(--text2); }
+  .status-badge { font-size: 11px; padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+  .badge-loading { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-connected { background: var(--success-light); color: var(--success-dark); }
+  .badge-error { background: var(--coral-light); color: var(--coral-dark); }
+  .tab-row { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { font-size: 13px; padding: 6px 16px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .tab:hover:not(.active) { background: var(--bg2); }
+  .section-label { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .biz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 24px; }
+  .biz-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px; cursor: pointer; transition: all 0.15s; }
+  .biz-card:hover { border-color: var(--border2); }
+  .biz-card.sel-0 { border: 1.5px solid var(--blue-dark); background: var(--blue-light); }
+  .biz-card.sel-1 { border: 1.5px solid var(--green-dark); background: var(--green-light); }
+  .biz-card.sel-2 { border: 1.5px solid var(--coral-dark); background: var(--coral-light); }
+  .biz-card.sel-3 { border: 1.5px solid var(--pink-dark); background: var(--pink-light); }
+  .biz-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px; flex-shrink: 0; margin-top: 4px; }
+  .dot-0{background:var(--blue);} .dot-1{background:var(--green);} .dot-2{background:var(--coral);} .dot-3{background:var(--pink);}
+  .biz-name { font-size: 13px; font-weight: 500; line-height: 1.3; }
+  .biz-role { font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .biz-count { font-size: 11px; color: var(--text3); margin-top: 8px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 16px; }
+  .cal-strip { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 16px; }
+  .cal-strip-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-event { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .cal-event:last-child { border-bottom: none; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
+  .cal-time { font-size: 12px; color: var(--text2); min-width: 120px; }
+  .cal-name { font-size: 13px; }
+  .checkin-prompt { font-size: 15px; line-height: 1.6; margin-bottom: 14px; }
+  .checkin-prompt strong { font-weight: 600; }
+  .textarea-wrap { position: relative; }
+  textarea { width: 100%; min-height: 110px; resize: vertical; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 48px 12px 12px; line-height: 1.6; }
+  textarea:focus { outline: none; border-color: var(--border2); }
+  textarea::placeholder { color: var(--text3); }
+  textarea.listening { border-color: var(--coral); background: var(--coral-light); }
+  .mic-btn { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 0.5px solid var(--border2); background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
+  .mic-btn:hover { background: var(--bg2); }
+  .mic-btn.active { background: var(--coral); border-color: var(--coral); }
+  .mic-btn svg { width: 15px; height: 15px; }
+  .mic-btn.active svg path { fill: white; }
+  .voice-status { font-size: 11px; color: var(--coral-dark); margin-top: 6px; min-height: 16px; display: flex; align-items: center; gap: 6px; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--coral); animation: pulse 1s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button { font-family: var(--font); font-size: 13px; padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: all 0.15s; }
+  button:hover { background: var(--bg2); }
+  button:active { transform: scale(0.98); }
+  button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  button.primary:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .ai-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-top: 14px; }
+  .ai-label { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .ai-content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: var(--text); }
+  .loading-dots { display: inline-flex; gap: 5px; align-items: center; }
+  .loading-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); animation: bounce 1.2s infinite; }
+  .loading-dots span:nth-child(2){animation-delay:0.2s;} .loading-dots span:nth-child(3){animation-delay:0.4s;}
+  @keyframes bounce{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--bg2); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 600; }
+  .stat-lbl { font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; position: relative; }
+  .task-stripe { width: 3px; border-radius: 2px; align-self: stretch; flex-shrink: 0; min-height: 36px; }
+  .stripe-0{background:var(--blue);} .stripe-1{background:var(--green);} .stripe-2{background:var(--coral);} .stripe-3{background:var(--pink);}
+  .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filter-pill { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
+  .filter-pill:hover { background: var(--bg2); }
+  .filter-pill.active-all { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .filter-pill.active-0 { background: var(--blue-light); color: var(--blue-dark); border-color: var(--blue-dark); }
+  .filter-pill.active-1 { background: var(--green-light); color: var(--green-dark); border-color: var(--green-dark); }
+  .filter-pill.active-2 { background: var(--coral-light); color: var(--coral-dark); border-color: var(--coral-dark); }
+  .filter-pill.active-3 { background: var(--pink-light); color: var(--pink-dark); border-color: var(--pink-dark); }
+  .pill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .task-cb { width: 17px; height: 17px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; cursor: pointer; flex-shrink: 0; margin-top: 1px; appearance: none; -webkit-appearance: none; }
+  .task-cb:checked { background: var(--text); border-color: var(--text); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-size: 11px; background-position: center; background-repeat: no-repeat; }
+  .task-text { font-size: 14px; flex: 1; line-height: 1.4; }
+  .task-text.done { text-decoration: line-through; color: var(--text3); }
+  .task-biz { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .task-del { font-size: 16px; color: var(--text3); cursor: pointer; line-height: 1; padding: 2px 4px; border: none; background: none; }
+  .task-del:hover { color: var(--coral-dark); }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; margin-top: 2px; font-weight: 500; }
+  .b-high{background:var(--coral-light);color:var(--coral-dark);}
+  .b-med{background:var(--amber-light);color:var(--amber-dark);}
+  .b-low{background:var(--success-light);color:var(--success-dark);}
+  .b-cal{background:var(--blue-light);color:var(--blue-dark);}
+  .add-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .add-row input { flex: 1; min-width: 140px; font-family: var(--font); font-size: 13px; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+  .add-row input:focus { outline: none; border-color: var(--border2); }
+  .add-row select { font-family: var(--font); font-size: 12px; padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+  .rollover-note { font-size: 12px; color: var(--text3); margin-top: 10px; font-style: italic; }
+  .rollover-task { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius); }
+  .rollover-task label { font-size: 13px; flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .rollover-task .task-biz { font-size: 11px; color: var(--text3); margin-left: auto; }
+  .time-block { display: flex; gap: 12px; padding: 12px 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); align-items: flex-start; }
+  .time-bar { width: 3px; border-radius: 2px; min-height: 40px; flex-shrink: 0; margin-top: 2px; }
+  .bar-0{background:var(--blue);} .bar-1{background:var(--green);} .bar-2{background:var(--coral);} .bar-3{background:var(--pink);} .bar-4{background:var(--text3);}
+  .time-slot { font-size: 12px; color: var(--text2); min-width: 100px; padding-top: 2px; }
+  .time-title { font-size: 14px; font-weight: 500; }
+  .time-desc { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+  .plan-grid { display: flex; flex-direction: column; gap: 8px; }
+  .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--text3); font-size: 14px; line-height: 1.7; }
+  .setup-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 20px; }
+  .setup-note { font-size: 13px; color: var(--text2); margin-bottom: 12px; line-height: 1.6; }
+  .setup-note a { color: var(--blue-dark); }
+  .api-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .api-row input { flex: 1; min-width: 200px; font-family: var(--font); font-size: 13px; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg3); color: var(--text); }
+  .api-row input:focus { outline: none; border-color: var(--border2); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); font-size: 13px; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .push-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); transition: all 0.2s; }
+  .step-dot.active { background: var(--text); width: 24px; border-radius: 4px; }
+  .ob-step { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .ob-biz-row { display: flex; gap: 8px; align-items: flex-start; }
+  .ob-biz-row input { font-family: var(--font); font-size: 13px; padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg3); color: var(--text); }
+  .ob-biz-row input:focus { outline: none; border-color: var(--border2); }
+  .ob-biz-name { flex: 2; }
+  .ob-biz-role { flex: 3; }
+  .ob-biz-remove { font-size:18px; color:var(--text3); background:none; border:none; cursor:pointer; padding:6px; line-height:1; flex-shrink:0; margin-top:2px; }
+  .ob-biz-remove:hover { color:var(--coral-dark); }
+  .settings-link { font-size:12px; color:var(--text3); cursor:pointer; text-decoration:underline; }
+  .cal-type-btn { font-size:12px; padding:6px 14px; border-radius:20px; border:0.5px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; font-family:var(--font); transition:all 0.15s; }
+  .cal-type-btn:hover { background:var(--bg2); }
+  .cal-type-btn.active { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .starter-btn { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 0.5px solid var(--border); background: var(--bg2); color: var(--text2); cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+  .starter-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .lab-bubble { padding: 12px 14px; border-radius: var(--radius-lg); font-size: 14px; line-height: 1.7; max-width: 100%; }
+  .lab-bubble.user { background: var(--text); color: var(--bg); align-self: flex-end; border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg); }
+  .lab-bubble.ai { background: var(--bg2); color: var(--text); border: 0.5px solid var(--border); white-space: pre-wrap; }
+  .lab-bubble.ai .bubble-label { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .lab-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .lab-actions button { font-size: 11px; padding: 3px 10px; }
+  .push-note { font-size: 12px; color: var(--text3); }
+</style>
+</head>
+<body>
+<!-- ONBOARDING WIZARD -->
+<div id="onboarding" style="display:none;max-width:600px;margin:0 auto;padding:24px 16px;">
+  <div style="margin-bottom:32px;">
+    <h1 style="font-size:24px;font-weight:600;margin-bottom:6px;">Daily Command Center</h1>
+    <p style="font-size:14px;color:var(--text2);">Let's set up your personal command center. Takes about 2 minutes.</p>
+  </div>
+
+  <!-- Step indicators -->
+  <div style="display:flex;gap:8px;margin-bottom:28px;" id="step-indicators">
+    <div class="step-dot active" id="dot-1"></div>
+    <div class="step-dot" id="dot-2"></div>
+    <div class="step-dot" id="dot-3"></div>
+    <div class="step-dot" id="dot-4"></div>
+  </div>
+
+  <!-- Step 1: Name -->
+  <div id="ob-step-1" class="ob-step">
+    <div class="card">
+      <div class="section-label" style="margin-bottom:12px;">Step 1 of 4 — Your name</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">What should we call you?</p>
+      <input type="text" id="ob-name" placeholder="First name or nickname..." style="width:100%;font-family:var(--font);font-size:16px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);" />
+      <div class="btn-row">
+        <button class="primary" onclick="obNext(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Businesses -->
+  <div id="ob-step-2" class="ob-step" style="display:none;">
+    <div class="card">
+      <div class="section-label" style="margin-bottom:12px;">Step 2 of 4 — Your businesses & roles</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:16px;">Add up to 6 businesses, roles, or life areas you want to manage. Could be work projects, a side hustle, family, health — anything that matters to you.</p>
+      <div id="ob-biz-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
+      <button onclick="obAddBiz()" style="font-size:13px;padding:7px 14px;">+ Add another</button>
+      <div class="btn-row">
+        <button class="primary" onclick="obNext(2)">Next →</button>
+        <button onclick="obBack(2)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Calendar setup -->
+  <div id="ob-step-3" class="ob-step" style="display:none;">
+    <div class="card">
+      <div class="section-label" style="margin-bottom:12px;">Step 3 of 4 — Calendar sync (optional)</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:16px;">Which calendar do you use? We'll set up a bridge so your existing events load into the app automatically.</p>
+
+      <!-- Calendar type picker -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="cal-type-pills">
+        <button class="cal-type-btn active" onclick="selectCalType('google')" id="cal-btn-google">Google Calendar</button>
+        <button class="cal-type-btn" onclick="selectCalType('outlook')" id="cal-btn-outlook">Outlook / Microsoft 365</button>
+        <button class="cal-type-btn" onclick="selectCalType('apple')" id="cal-btn-apple">Apple Calendar</button>
+        <button class="cal-type-btn" onclick="selectCalType('none')" id="cal-btn-none">Skip for now</button>
+      </div>
+
+      <!-- Google instructions -->
+      <div id="cal-instructions-google">
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.7;">
+          <strong style="color:var(--text);display:block;margin-bottom:8px;">One-time setup:</strong>
+          1. Go to <a href="https://script.google.com" target="_blank" style="color:var(--blue-dark);">script.google.com</a> → New project<br>
+          2. Paste this code and save:<br>
+          <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px;margin:8px 0;font-family:monospace;font-size:12px;white-space:pre-wrap;position:relative;">function doGet() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0);
+  const end = new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59);
+  const cal = CalendarApp.getDefaultCalendar();
+  const events = cal.getEvents(start,end).map(e=>({
+    title:e.getTitle(),
+    start:e.getStartTime().toISOString(),
+    end:e.getEndTime().toISOString()
+  }));
+  events.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  return ContentService.createTextOutput(JSON.stringify(events)).setMimeType(ContentService.MimeType.JSON);
+}<button onclick="copyScriptCode()" style="position:absolute;top:6px;right:6px;font-size:10px;padding:3px 8px;">Copy</button></div>
+          3. Click <strong style="color:var(--text);">Deploy → New deployment → Web app → Anyone → Deploy</strong><br>
+          4. Copy the URL and paste below
+        </div>
+        <input type="url" id="ob-calendar-url" placeholder="https://script.google.com/macros/s/..." style="width:100%;font-family:var(--font);font-size:13px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);margin-bottom:6px;" />
+        <p style="font-size:12px;color:var(--text3);">Don't have one yet? Leave blank — you can add it later in Settings.</p>
+      </div>
+
+      <!-- Outlook instructions -->
+      <div id="cal-instructions-outlook" style="display:none;">
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.7;">
+          <strong style="color:var(--text);display:block;margin-bottom:8px;">One-time setup via Power Automate:</strong>
+          1. Go to <a href="https://make.powerautomate.com" target="_blank" style="color:var(--blue-dark);">make.powerautomate.com</a> and sign in with your Microsoft account<br>
+          2. Click <strong style="color:var(--text);">+ Create → Instant cloud flow</strong><br>
+          3. Choose trigger: <strong style="color:var(--text);">When an HTTP request is received</strong><br>
+          4. Add action: <strong style="color:var(--text);">Get events (V4)</strong> from Outlook calendar — set date range to today<br>
+          5. Add action: <strong style="color:var(--text);">Response</strong> — output the events as JSON<br>
+          6. Save and copy the HTTP trigger URL, then paste it below<br>
+          <br>
+          <strong style="color:var(--text);">Alternatively</strong> — if your Outlook calendar syncs to Google Calendar or Apple Calendar, you can use the Google or Apple option above instead.
+        </div>
+        <input type="url" id="ob-calendar-url-outlook" placeholder="https://prod-xx.westus.logic.azure.com/..." style="width:100%;font-family:var(--font);font-size:13px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);margin-bottom:6px;" />
+        <p style="font-size:12px;color:var(--text3);">Leave blank to skip and add later.</p>
+      </div>
+
+      <!-- Apple Calendar instructions -->
+      <div id="cal-instructions-apple" style="display:none;">
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.7;">
+          <strong style="color:var(--text);display:block;margin-bottom:8px;">Apple Calendar + iCloud:</strong>
+          Apple Calendar doesn't have a direct API bridge like Google Apps Script. The best option is:<br><br>
+          <strong style="color:var(--text);">Option A</strong> — If your Apple Calendar syncs with a Google account (most do), use the <strong style="color:var(--text);">Google Calendar</strong> option above — it'll read the same events.<br><br>
+          <strong style="color:var(--text);">Option B</strong> — Skip calendar sync. You can still push your day plan to Apple Calendar via the .ics export, and the AI will work around any events you mention in your brain dump.
+        </div>
+        <p style="font-size:12px;color:var(--text3);">Check if your Apple Calendar has a Google account connected — if so, switch to Google Calendar above.</p>
+      </div>
+
+      <!-- Skip -->
+      <div id="cal-instructions-none" style="display:none;">
+        <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text2);line-height:1.6;">
+          No problem — you can always add calendar sync later in Settings. The app works great without it; just mention any fixed appointments in your morning brain dump and the AI will plan around them.
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="primary" onclick="obNext(3)">Next →</button>
+        <button onclick="obBack(3)">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: API Key -->
+  <div id="ob-step-4" class="ob-step" style="display:none;">
+    <div class="card">
+      <div class="section-label" style="margin-bottom:12px;">Step 4 of 4 — Anthropic API key</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">This powers the AI features — brain dump organization, day planning, strategic lab. Get a free key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue-dark);">console.anthropic.com</a> → API Keys → Create Key.</p>
+      <input type="password" id="ob-api-key" placeholder="sk-ant-..." style="width:100%;font-family:var(--font);font-size:16px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);margin-bottom:8px;" />
+      <p id="ob-api-status" style="font-size:12px;color:var(--coral-dark);min-height:16px;margin-bottom:12px;"></p>
+      <div class="btn-row">
+        <button class="primary" onclick="obFinish()">Let's go →</button>
+        <button onclick="obBack(4)">← Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="main-app" style="display:none;">
+  <div class="header">
+    <div>
+      <h1>Daily command center</h1>
+      <p>Your 4 businesses. One clear day.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="date-badge" id="datebadge"></span>
+      <span class="settings-link" onclick="openSettings()">Settings</span>
+    </div>
+  </div>
+
+  <div class="setup-card" id="api-setup">
+    <div class="section-label">One-time setup — Anthropic API key</div>
+    <p class="setup-note">To power the AI features, enter your Anthropic API key. Get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key. Stored only in your browser.</p>
+    <div class="api-row">
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+      <button class="primary" onclick="saveApiKey()">Save & continue</button>
+    </div>
+    <p id="api-key-status" style="font-size:12px;margin-top:8px;min-height:16px;"></p>
+  </div>
+
+  <div class="gcal-box">
+    <div class="gcal-left">
+      <p>Google Calendar</p>
+      <span id="gcal-status">Loading your calendar...</span>
+    </div>
+    <div id="gcal-badge"><span class="status-badge badge-loading">Loading...</span></div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" onclick="switchTab('checkin')">Morning check-in</button>
+    <button class="tab" onclick="switchTab('tasks')">Tasks</button>
+    <button class="tab" onclick="switchTab('plan')">Day plan</button>
+    <button class="tab" onclick="switchTab('lab')">Strategic lab</button>
+    <button class="tab" onclick="switchTab('wrap')">End of day</button>
+  </div>
+
+  <div class="section-label">Your businesses</div>
+  <div class="biz-grid" id="bizgrid"></div>
+
+  <!-- CHECK-IN -->
+  <div id="view-checkin" class="view active">
+    <div id="cal-strip" style="display:none;" class="cal-strip">
+      <div class="cal-strip-header">
+        <span class="section-label" style="margin:0;">Today's sessions (Google Calendar)</span>
+        <button style="font-size:11px;padding:4px 10px;" onclick="loadCalendar()">Refresh</button>
+      </div>
+      <div id="cal-events-list"></div>
+    </div>
+    <div class="card">
+      <p class="checkin-prompt"><span id="checkin-greeting">Good morning!</span> <strong>What's on your plate today?</strong> Type or use the mic to brain dump — anything not already on your calendar.</p>
+      <div class="textarea-wrap">
+        <textarea id="brain-dump" placeholder="e.g. Follow up with Marcus on the novation deal... research 501c3 filing requirements... prep for tomorrow's TLWB session..."></textarea>
+        <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Click to dictate">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z" fill="currentColor"/>
+            <path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="voice-status" id="voice-status"></div>
+      <div class="btn-row">
+        <button class="primary" onclick="runCheckin()">Organize & prioritize ↗</button>
+        <button onclick="clearCheckin()">Clear</button>
+      </div>
+      <div id="ai-out" style="display:none;">
+        <div class="ai-box">
+          <div class="ai-label">AI chief of staff</div>
+          <div class="ai-content" id="ai-text"></div>
+        </div>
+        <div class="btn-row">
+          <button onclick="switchTab('plan');generatePlan()">Turn this into my day plan ↗</button>
+          <button onclick="openLabWithInsight()">Explore in strategic lab ↗</button>
+          <button onclick="switchTab('tasks')">View tasks ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS -->
+  <div id="view-tasks" class="view">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total tasks</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-done">0</div><div class="stat-lbl">Done today</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-pending">0</div><div class="stat-lbl">Pending</div></div>
+    </div>
+    <div class="filter-pills" id="filter-pills">
+      <button class="filter-pill active-all" onclick="setFilter(null)">All businesses</button>
+      <button class="filter-pill" onclick="setFilter(0)"><span class="pill-dot" style="background:var(--blue)"></span>TLWB</button>
+      <button class="filter-pill" onclick="setFilter(1)"><span class="pill-dot" style="background:var(--green)"></span>Sales coaching</button>
+      <button class="filter-pill" onclick="setFilter(2)"><span class="pill-dot" style="background:var(--coral)"></span>Real estate</button>
+      <button class="filter-pill" onclick="setFilter(3)"><span class="pill-dot" style="background:var(--pink)"></span>Adoption 501c3</button>
+    </div>
+    <div class="section-label" id="task-list-label">All tasks</div>
+    <div class="task-list" id="task-list"></div>
+    <div class="add-row">
+      <input type="text" id="new-task-input" placeholder="Add a task..." onkeydown="if(event.key==='Enter')addTask()" />
+      <select id="new-task-biz">
+        <option value="0">TLWB</option>
+        <option value="1">Sales coaching</option>
+        <option value="2">Real estate</option>
+        <option value="3">Adoption 501c3</option>
+      </select>
+      <select id="new-task-pri">
+        <option value="high">High</option>
+        <option value="med">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <button onclick="addTask()">Add</button>
+    </div>
+    <p class="rollover-note" id="rollover-note"></p>
+  </div>
+
+  <!-- PLAN -->
+  <div id="view-plan" class="view">
+    <div class="section-label">Today's time blocks</div>
+    <div class="plan-grid" id="plan-grid">
+      <div class="empty-state">No day plan yet.<br>Run your morning check-in and tap "Turn this into my day plan."</div>
+    </div>
+    <div class="push-row">
+      <button onclick="generatePlan()">Generate plan with AI ↗</button>
+      <button id="push-all-btn" onclick="pushToCalendar('all')" style="display:none;">Push all to calendar ↗</button>
+      <button id="push-pick-btn" onclick="showPickEvents()" style="display:none;">Choose events to push ↗</button>
+    </div>
+    <div id="push-note" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
+
+    <!-- Event picker modal -->
+    <div id="event-picker" style="display:none;margin-top:16px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px;">
+      <div class="section-label" style="margin-bottom:10px;">Choose which events to push</div>
+      <div id="event-picker-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+      <div class="btn-row">
+        <button class="primary" onclick="pushToCalendar('picked')">Push selected ↗</button>
+        <button onclick="document.getElementById('event-picker').style.display='none'">Cancel</button>
+        <button onclick="toggleAllEvents(true)" style="font-size:11px;">Select all</button>
+        <button onclick="toggleAllEvents(false)" style="font-size:11px;">Deselect all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STRATEGIC LAB -->
+  <div id="view-lab" class="view">
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div>
+          <div class="section-label" style="margin-bottom:4px;">Strategic lab</div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.5;">Develop ideas, build systems, and think through strategy. Anything actionable can be pushed straight to your task list.</p>
+        </div>
+        <button onclick="clearLab()" style="font-size:11px;padding:4px 10px;flex-shrink:0;">Clear conversation</button>
+      </div>
+      <div id="lab-starters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+        <span class="section-label" style="width:100%;margin-bottom:6px;">Quick starters</span>
+        <button class="starter-btn" onclick="labStarter('develop')">Develop this insight further</button>
+        <button class="starter-btn" onclick="labStarter('system')">Turn this into a system</button>
+        <button class="starter-btn" onclick="labStarter('tool')">What tool could automate this?</button>
+        <button class="starter-btn" onclick="labStarter('process')">Build a repeatable process</button>
+        <button class="starter-btn" onclick="labStarter('revenue')">How does this generate revenue?</button>
+        <button class="starter-btn" onclick="labStarter('adoption')">Apply this to the 501c3</button>
+      </div>
+      <div id="lab-thread" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:60px;"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="lab-input" placeholder="Ask anything — explore an idea, challenge an assumption, request a framework, ask for a template..." style="min-height:70px;flex:1;padding-right:12px;" onkeydown="if(event.key==='Enter'&&(event.metaKey||event.ctrlKey))sendLabMessage()"></textarea>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="primary" onclick="sendLabMessage()" style="white-space:nowrap;">Send ↗</button>
+          <button class="mic-btn" id="lab-mic-btn" onclick="toggleLabVoice()" title="Dictate" style="position:static;width:36px;height:36px;">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z" fill="currentColor"/><path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="voice-status" id="lab-voice-status"></div>
+      <p style="font-size:11px;color:var(--text3);margin-top:8px;">Tip: Cmd+Enter to send</p>
+    </div>
+  </div>
+
+  <!-- END OF DAY WRAP -->
+  <div id="view-wrap" class="view">
+    <div class="card" style="margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:4px;">End of day wrap</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">Capture what happened, what didn't, and what tomorrow needs. Your best thinking happens while today is still fresh.</p>
+
+      <!-- Incomplete task rollover -->
+      <div id="rollover-section" style="margin-bottom:18px;">
+        <div class="section-label" style="margin-bottom:8px;">Incomplete tasks — choose what rolls over</div>
+        <div id="rollover-task-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <p style="font-size:12px;color:var(--text3);margin-top:8px;">Checked items will carry forward to tomorrow. Unchecked items will be dropped.</p>
+      </div>
+
+      <!-- EOD brain dump -->
+      <div class="section-label" style="margin-bottom:8px;">Brain dump — how did the day go?</div>
+      <div class="textarea-wrap">
+        <textarea id="eod-dump" placeholder="e.g. Got the Marcus deal moving — need to follow up Friday... didn't get to the 501c3 research, that's priority one tomorrow... had a great idea about automating the grant research process..." style="min-height:110px;"></textarea>
+        <button class="mic-btn" id="eod-mic-btn" onclick="toggleEodVoice()" title="Dictate" style="top:10px;">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z" fill="currentColor"/><path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="voice-status" id="eod-voice-status"></div>
+
+      <div class="btn-row">
+        <button class="primary" onclick="runEodWrap()">Summarize & prep tomorrow ↗</button>
+        <button onclick="document.getElementById('eod-dump').value=''">Clear</button>
+      </div>
+
+      <div id="eod-out" style="display:none;">
+        <div class="ai-box" style="margin-top:14px;">
+          <div class="ai-label">Tomorrow's setup</div>
+          <div class="ai-content" id="eod-text"></div>
+        </div>
+        <div class="btn-row">
+          <button class="primary" onclick="startNewDay()">Start new day ↗</button>
+          <span style="font-size:12px;color:var(--text3);align-self:center;">Rolls over selected tasks, clears today, loads tomorrow</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- end main-app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — loaded from localStorage, set during onboarding ──
+function getConfig() {
+  const saved = localStorage.getItem("dcc_config");
+  if (saved) return JSON.parse(saved);
+  return null;
+}
+function saveConfig(cfg) {
+  localStorage.setItem("dcc_config", JSON.stringify(cfg));
+}
+function isOnboarded() {
+  // Existing users: auto-migrate if they have an API key but no config
+  if (!localStorage.getItem("dcc_config") && localStorage.getItem("dcc_api_key")) {
+    const cfg = {
+      name: "Chris",
+      calendarUrl: "https://script.google.com/macros/s/AKfycbyvn-qto4NH-dMhLECwenPYDiIT4UIskr5xDxggzb0xL2-GvKg0aLkyuX6Ic3298TeJ/exec",
+      businesses: [
+        { name: "Tax Lien Wealth Builders", role: "Flyout coach (IC)" },
+        { name: "Sales coaching", role: "Founder — wholesale RE sales" },
+        { name: "Real estate (novation)", role: "Wholesaler partner" },
+        { name: "Adoption 501c3", role: "Founder — passion project" }
+      ]
+    };
+    saveConfig(cfg);
+  }
+  return !!localStorage.getItem("dcc_config");
+}
+
+// These get populated from config on init
+let CALENDAR_URL = "";
+let BUSINESSES = [];
+let USER_NAME = "";
+
+const BIZ_COLORS = [
+  { dark: "var(--blue-dark)", light: "var(--blue-light)", dot: "var(--blue)", stripe: "stripe-0" },
+  { dark: "var(--green-dark)", light: "var(--green-light)", dot: "var(--green)", stripe: "stripe-1" },
+  { dark: "var(--coral-dark)", light: "var(--coral-light)", dot: "var(--coral)", stripe: "stripe-2" },
+  { dark: "var(--pink-dark)", light: "var(--pink-light)", dot: "var(--pink)", stripe: "stripe-3" },
+  { dark: "var(--amber-dark)", light: "var(--amber-light)", dot: "#EF9F27", stripe: "stripe-4" },
+  { dark: "#533AB7", light: "#EEEDFE", dot: "#7F77DD", stripe: "stripe-5" }
+];
+
+let tasks = [];
+let nextId = 1;
+let selectedBiz = null;
+let planData = [];
+let calendarEvents = [];
+let lastCheckinOutput = "";
+let apiKey = localStorage.getItem("dcc_api_key") || "";
+let recognition = null;
+let isListening = false;
+let lastSavedDate = localStorage.getItem("dcc_last_date") || "";
+
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function init() {
+  if (!isOnboarded()) {
+    document.getElementById("onboarding").style.display = "block";
+    document.getElementById("main-app").style.display = "none";
+    obAddBiz(); obAddBiz();
+    return;
+  }
+  document.getElementById("onboarding").style.display = "none";
+  document.getElementById("main-app").style.display = "block";
+  loadConfig();
+  const now = new Date();
+  document.getElementById("datebadge").textContent = now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const h = now.getHours();
+  document.getElementById("checkin-greeting").textContent = (h<12?"Good morning":h<17?"Good afternoon":"Good evening") + (USER_NAME ? ", " + USER_NAME : "") + "!";
+  if (apiKey) document.getElementById("api-setup").style.display = "none";
+  loadTasks();
+  renderBizGrid();
+  renderTasks();
+  loadCalendar();
+  initVoice();
+  const tomorrowCtx = localStorage.getItem("dcc_tomorrow_context");
+  const savedDate = localStorage.getItem("dcc_last_date") || "";
+  if (tomorrowCtx && savedDate === todayStr()) {
+    document.getElementById("brain-dump").placeholder = "Yesterday's priorities are ready — hit 'Organize & prioritize' to build on them, or type your own brain dump above.";
+    document.getElementById("brain-dump").value = tomorrowCtx.substring(0, 600);
+  }
+}
+
+function loadConfig() {
+  const cfg = getConfig();
+  if (!cfg) return;
+  USER_NAME = cfg.name || "";
+  CALENDAR_URL = cfg.calendarUrl || "";
+  BUSINESSES = (cfg.businesses || []).map(b => ({
+    name: b.name,
+    role: b.role,
+    short: b.name.length > 14 ? b.name.substring(0, 14) + "…" : b.name
+  }));
+  // Rebuild stripe CSS dynamically for up to 6 businesses
+  let stripeCSS = "";
+  BIZ_COLORS.forEach((c, i) => {
+    stripeCSS += `.stripe-${i}{background:${c.dot};}`;
+  });
+  const styleEl = document.getElementById("dynamic-styles") || document.createElement("style");
+  styleEl.id = "dynamic-styles";
+  styleEl.textContent = stripeCSS;
+  document.head.appendChild(styleEl);
+  // Update task biz select options
+  const sel = document.getElementById("new-task-biz");
+  if (sel) {
+    sel.innerHTML = BUSINESSES.map((b,i) => `<option value="${i}">${b.short}</option>`).join("");
+  }
+}
+
+// ── PERSISTENCE ──────────────────────────────────────────────
+function loadTasks() {
+  const today = todayStr();
+  const saved = localStorage.getItem("dcc_tasks");
+  const savedDate = localStorage.getItem("dcc_last_date") || "";
+  if (saved) {
+    let loaded = JSON.parse(saved);
+    if (savedDate !== today) {
+      // New day: roll over incomplete tasks, clear done ones
+      loaded = loaded.filter(t => !t.done);
+      loaded.forEach(t => t.rolledOver = true);
+      showToast("Rolled over " + loaded.length + " unfinished task" + (loaded.length !== 1 ? "s" : "") + " from yesterday");
+    }
+    tasks = loaded;
+    nextId = tasks.length ? Math.max(...tasks.map(t=>t.id)) + 1 : 1;
+  } else {
+    // First run defaults
+    tasks = [
+      { id:1, text:"Prep for next TLWB coaching session", biz:0, pri:"high", done:false },
+      { id:2, text:"Follow up on open novation deals", biz:2, pri:"high", done:false },
+      { id:3, text:"Research 501c3 filing requirements", biz:3, pri:"med", done:false }
+    ];
+    nextId = 4;
+  }
+  localStorage.setItem("dcc_last_date", today);
+  saveTasks();
+}
+
+function saveTasks() {
+  localStorage.setItem("dcc_tasks", JSON.stringify(tasks));
+  localStorage.setItem("dcc_last_date", todayStr());
+}
+
+// ── API KEY ───────────────────────────────────────────────────
+function saveApiKey() {
+  const raw = document.getElementById("api-key-input").value;
+  const val = raw.trim().replace(/\s+/g, "");
+  const statusEl = document.getElementById("api-key-status");
+  if (!val) {
+    statusEl.textContent = "Please paste your API key first.";
+    statusEl.style.color = "var(--coral-dark)";
+    return;
+  }
+  if (!val.startsWith("sk-ant-") && !val.startsWith("sk-")) {
+    statusEl.textContent = "That doesn't look like an Anthropic key — it should start with sk-ant-. Check for extra characters.";
+    statusEl.style.color = "var(--coral-dark)";
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem("dcc_api_key", val);
+  statusEl.textContent = "Key saved!";
+  statusEl.style.color = "var(--success-dark)";
+  setTimeout(() => {
+    document.getElementById("api-setup").style.display = "none";
+  }, 800);
+  showToast("API key saved!");
+}
+
+// ── CALENDAR ──────────────────────────────────────────────────
+async function loadCalendar() {
+  setCalStatus("Fetching your calendar...", "loading");
+  try {
+    const res = await fetch(CALENDAR_URL);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    calendarEvents = await res.json();
+    renderCalStrip();
+    setCalStatus("Connected — " + calendarEvents.length + " event" + (calendarEvents.length!==1?"s":"") + " today", "connected");
+  } catch(e) {
+    setCalStatus("Could not load calendar. Check your connection.", "error");
+  }
+}
+
+function setCalStatus(msg, type) {
+  document.getElementById("gcal-status").textContent = msg;
+  const map = { loading:["Loading...","badge-loading"], connected:["Connected","badge-connected"], error:["Error","badge-error"] };
+  const [label,cls] = map[type]||map.loading;
+  document.getElementById("gcal-badge").innerHTML = `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+function fmt(d) { return new Date(d).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+
+function renderCalStrip() {
+  document.getElementById("cal-strip").style.display = "block";
+  const list = document.getElementById("cal-events-list");
+  if (!calendarEvents.length) {
+    list.innerHTML = `<div style="font-size:13px;color:var(--text3);padding:6px 0;">No events scheduled for today.</div>`;
+    return;
+  }
+  list.innerHTML = calendarEvents.map(e=>`
+    <div class="cal-event">
+      <span class="cal-dot"></span>
+      <span class="cal-time">${fmt(e.start)} – ${fmt(e.end)}</span>
+      <span class="cal-name">${e.title||"Untitled event"}</span>
+    </div>`).join("");
+}
+
+// ── VOICE ─────────────────────────────────────────────────────
+function initVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    document.getElementById("mic-btn").style.display = "none";
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  let finalTranscript = "";
+  let existingText = "";
+
+  recognition.onstart = () => {
+    isListening = true;
+    existingText = document.getElementById("brain-dump").value;
+    finalTranscript = "";
+    document.getElementById("mic-btn").classList.add("active");
+    document.getElementById("brain-dump").classList.add("listening");
+    document.getElementById("voice-status").innerHTML = `<span class="pulse"></span> Listening — speak your brain dump...`;
+  };
+
+  recognition.onresult = (e) => {
+    let interim = "";
+    finalTranscript = "";
+    for (let i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + " ";
+      else interim += e.results[i][0].transcript;
+    }
+    const combined = existingText + (existingText && finalTranscript ? "\n" : "") + finalTranscript + interim;
+    document.getElementById("brain-dump").value = combined;
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    document.getElementById("mic-btn").classList.remove("active");
+    document.getElementById("brain-dump").classList.remove("listening");
+    document.getElementById("voice-status").innerHTML = "";
+    const existing = existingText;
+    if (finalTranscript.trim()) {
+      document.getElementById("brain-dump").value = existing + (existing ? "\n" : "") + finalTranscript.trim();
+    }
+  };
+
+  recognition.onerror = (e) => {
+    isListening = false;
+    document.getElementById("mic-btn").classList.remove("active");
+    document.getElementById("brain-dump").classList.remove("listening");
+    document.getElementById("voice-status").innerHTML = `<span style="color:var(--coral-dark);">Mic error: ${e.error}. Try again.</span>`;
+  };
+}
+
+function toggleVoice() {
+  if (!recognition) { alert("Voice dictation isn't supported in this browser. Try Chrome."); return; }
+  if (isListening) { recognition.stop(); }
+  else { recognition.start(); }
+}
+
+// ── BUSINESSES ────────────────────────────────────────────────
+function renderBizGrid() {
+  document.getElementById("bizgrid").innerHTML = BUSINESSES.map((b,i)=>`
+    <div class="biz-card ${selectedBiz===i?"sel-"+i:""}" onclick="selectBiz(${i})">
+      <div style="display:flex;align-items:flex-start;gap:7px;">
+        <span class="biz-dot dot-${i}"></span>
+        <div>
+          <div class="biz-name">${b.name}</div>
+          <div class="biz-role">${b.role}</div>
+          <div class="biz-count">${tasks.filter(t=>t.biz===i&&!t.done).length} pending</div>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+function setFilter(biz) {
+  selectedBiz = biz;
+  // Update pill styles
+  const pills = document.querySelectorAll(".filter-pill");
+  pills[0].className = "filter-pill" + (biz === null ? " active-all" : "");
+  for (let i = 1; i <= 4; i++) {
+    pills[i].className = "filter-pill" + (biz === i - 1 ? " active-" + (i-1) : "");
+  }
+  // Update label
+  const label = document.getElementById("task-list-label");
+  label.textContent = biz === null ? "All tasks" : BUSINESSES[biz].name + " tasks";
+  renderBizGrid();
+  renderTasks();
+}
+
+function selectBiz(i) { setFilter(selectedBiz === i ? null : i); }
+
+function renderTasks() {
+  const filtered = selectedBiz !== null ? tasks.filter(t => t.biz === selectedBiz) : tasks;
+  const list = document.getElementById("task-list");
+  list.innerHTML = filtered.length ? filtered.map(t => `
+    <div class="task-item">
+      <div class="task-stripe stripe-${t.biz}"></div>
+      <input type="checkbox" class="task-cb" ${t.done?"checked":""} onchange="toggleTask(${t.id})" />
+      <div style="flex:1;min-width:0;">
+        <div class="task-text ${t.done?"done":""}">${t.text}${t.rolledOver?` <span style="font-size:10px;color:var(--text3);margin-left:4px;">rolled over</span>`:""}
+        </div>
+        <div class="task-biz" style="color:${["var(--blue-dark)","var(--green-dark)","var(--coral-dark)","var(--pink-dark)"][t.biz]};font-weight:500;">${BUSINESSES[t.biz].short}</div>
+      </div>
+      ${t.fromCal ? '<span class="badge b-cal">Calendar</span>' : `<span class="badge b-${t.pri}">${t.pri}</span>`}
+      <button class="task-del" onclick="deleteTask(${t.id})" title="Delete">×</button>
+    </div>`).join("") :
+    `<div class="empty-state">No tasks${selectedBiz !== null ? " for " + BUSINESSES[selectedBiz].short : ""}.<br>Add one below or use the morning check-in.</div>`;
+  const total = tasks.length, done = tasks.filter(t => t.done).length;
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-done").textContent = done;
+  document.getElementById("stat-pending").textContent = total - done;
+  const rolled = tasks.filter(t => t.rolledOver && !t.done).length;
+  document.getElementById("rollover-note").textContent = rolled ? `${rolled} task${rolled!==1?"s":""} rolled over from yesterday` : "";
+}
+
+function switchTab(tab) {
+  const tabs = ["checkin","tasks","plan","lab","wrap"];
+  document.querySelectorAll(".tab").forEach((t,i)=>t.classList.toggle("active",tabs[i]===tab));
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.getElementById("view-"+tab).classList.add("active");
+  if (tab === "wrap") renderRolloverList();
+}
+
+// ── TASKS ─────────────────────────────────────────────────────
+
+function toggleTask(id) {
+  const t=tasks.find(t=>t.id===id);
+  if(t){ t.done=!t.done; saveTasks(); renderTasks(); renderBizGrid(); }
+}
+
+function deleteTask(id) {
+  tasks=tasks.filter(t=>t.id!==id);
+  saveTasks(); renderTasks(); renderBizGrid();
+}
+
+function addTask() {
+  const input=document.getElementById("new-task-input");
+  const text=input.value.trim(); if(!text)return;
+  tasks.push({id:nextId++,text,biz:parseInt(document.getElementById("new-task-biz").value),pri:document.getElementById("new-task-pri").value,done:false});
+  input.value=""; saveTasks(); renderTasks(); renderBizGrid();
+}
+
+// ── AI ────────────────────────────────────────────────────────
+async function callClaude(system, userMsg, maxTokens) {
+  if (!apiKey) {
+    apiKey = prompt("Enter your Anthropic API key (sk-ant-...):");
+    if (!apiKey) throw new Error("No API key provided.");
+    localStorage.setItem("dcc_api_key", apiKey);
+  }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({ model:"claude-sonnet-4-5", max_tokens: maxTokens || 1200, system, messages:[{role:"user",content:userMsg}] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content?.map(b=>b.text||"").join("")||"";
+}
+
+function calContext() {
+  if (!calendarEvents.length) return "No calendar events today.";
+  return "Today's scheduled sessions (from Google Calendar):\n" +
+    calendarEvents.map(e=>`- ${fmt(e.start)} – ${fmt(e.end)}: ${e.title||"Untitled"}`).join("\n");
+}
+
+function bizContext() {
+  return BUSINESSES.map((b,i) => `${i+1}. ${b.name} — ${b.role}`).join("\n");
+}
+
+async function runCheckin() {
+  const dump = document.getElementById("brain-dump").value.trim();
+  if (!dump) { alert("Tell me what's on your mind first!"); return; }
+  if (isListening) { recognition.stop(); }
+  const out=document.getElementById("ai-out"), aiText=document.getElementById("ai-text");
+  out.style.display="block";
+  aiText.innerHTML=`<span class="loading-dots"><span></span><span></span><span></span></span>`;
+  const sys=`You are an AI chief of staff for a busy entrepreneur with ${BUSINESSES.length} businesses/roles:
+${bizContext()}
+
+${calContext()}
+
+When given a brain dump:
+1. Organize items by business with clear headers
+2. Assign each item a priority: High / Medium / Low
+3. Suggest a time-blocked schedule that works AROUND any existing calendar events (treat those as fixed — do not reschedule them)
+4. Close with one sharp, specific strategic insight
+
+Be concise, direct, and actionable.`;
+  try {
+    const response = await callClaude(sys, `Brain dump:\n\n${dump}`);
+    aiText.textContent = response;
+    lastCheckinOutput = response;
+  } catch(e) {
+    aiText.textContent = "Error: " + e.message;
+  }
+}
+
+function clearCheckin() {
+  document.getElementById("brain-dump").value="";
+  document.getElementById("ai-out").style.display="none";
+  document.getElementById("voice-status").innerHTML="";
+  lastCheckinOutput = "";
+  if (isListening && recognition) recognition.stop();
+}
+
+// ── DAY PLAN ──────────────────────────────────────────────────
+async function generatePlan() {
+  const grid=document.getElementById("plan-grid");
+  grid.innerHTML=`<div class="empty-state"><span class="loading-dots"><span></span><span></span><span></span></span><br><br>Building your day plan...</div>`;
+  document.getElementById("push-all-btn").style.display = "none";
+  document.getElementById("push-pick-btn").style.display = "none";
+  document.getElementById("push-note").textContent = "";
+  const pending=tasks.filter(t=>!t.done);
+  const taskList=pending.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text} (${t.pri} priority)`).join("\n")||"No tasks added yet.";
+  const calFixed=calendarEvents.length
+    ?"Fixed calendar blocks (keep at their exact times, do not move):\n"+calendarEvents.map(e=>`- ${fmt(e.start)} – ${fmt(e.end)}: ${e.title||"Session"}`).join("\n")
+    :"No fixed calendar events today.";
+  const brainDump = document.getElementById("brain-dump").value.trim();
+  const checkinContext = lastCheckinOutput
+    ? `\n\nLatest brain dump & AI priorities (use this to inform scheduling — this is the most up to date picture of the day):\n${lastCheckinOutput}`
+    : brainDump
+      ? `\n\nRaw brain dump (not yet organized):\n${brainDump}`
+      : "";
+  const sys=`You are a time-block day planner. Output a JSON array of time blocks. Keep it to a maximum of 12 blocks. Each block must have exactly: { "time": "9:00am–10:00am", "title": "short title", "desc": "one sentence", "biz": 0 } where biz is 0=TLWB, 1=Sales coaching, 2=Real estate, 3=Adoption 501c3, 4=break or admin. Place fixed calendar events at their exact times first, then schedule tasks around them. Use any brain dump or priority context to inform the order and emphasis of tasks. Start around 8am, end by 6pm. Output ONLY the raw JSON array, no markdown, no explanation. Make sure the JSON is complete and valid — do not truncate.`;
+  try {
+    const raw = await callClaude(sys, `${calFixed}\n\nTasks:\n${taskList}${checkinContext}`, 2000);
+    let clean = raw.replace(/```json|```/g,"").trim();
+    // Repair truncated JSON — close any open array
+    if (!clean.endsWith("]")) {
+      const lastGood = clean.lastIndexOf("},");
+      const lastObj = clean.lastIndexOf("}");
+      const cutAt = lastObj > lastGood ? lastObj + 1 : lastGood + 1;
+      clean = clean.substring(0, cutAt) + "]";
+    }
+    planData = JSON.parse(clean);
+    renderPlan();
+    document.getElementById("push-all-btn").style.display = "inline-block";
+    document.getElementById("push-pick-btn").style.display = "inline-block";
+    document.getElementById("event-picker").style.display = "none";
+    document.getElementById("push-note").textContent = calendarEvents.length
+      ? `${calendarEvents.length} existing calendar event${calendarEvents.length!==1?"s":""} will be skipped automatically.`
+      : "Push all will export all time blocks as calendar events.";
+  } catch(e) {
+    grid.innerHTML=`<div class="empty-state">Couldn't generate plan: ${e.message}</div>`;
+  }
+}
+
+function renderPlan() {
+  const grid=document.getElementById("plan-grid");
+  if(!planData.length){grid.innerHTML=`<div class="empty-state">No plan generated.</div>`;return;}
+  grid.innerHTML=planData.map(b=>`
+    <div class="time-block">
+      <div class="time-bar bar-${b.biz}"></div>
+      <div class="time-slot">${b.time}</div>
+      <div class="time-content">
+        <div class="time-title">${b.title}</div>
+        <div class="time-desc">${b.desc}</div>
+      </div>
+    </div>`).join("");
+}
+
+// ── PUSH TO GOOGLE CALENDAR ───────────────────────────────────
+// Parse "9:00am–10:00am" into {start, end} Date objects
+function parseTimeBlock(timeStr, baseDate) {
+  const parts = timeStr.split(/[–-]/).map(s => s.trim());
+  function toDate(t) {
+    const d = new Date(baseDate);
+    const match = t.match(/(\d+):(\d+)\s*(am|pm)/i);
+    if (!match) return null;
+    let h = parseInt(match[1]), m = parseInt(match[2]);
+    const pm = match[3].toLowerCase() === "pm";
+    if (pm && h !== 12) h += 12;
+    if (!pm && h === 12) h = 0;
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  return { start: toDate(parts[0]), end: toDate(parts[1] || parts[0]) };
+}
+
+// Check if a time block overlaps with any existing calendar event
+function overlapsCalendar(block, baseDate) {
+  if (!calendarEvents.length) return false;
+  const { start, end } = parseTimeBlock(block.time, baseDate);
+  if (!start || !end) return false;
+  return calendarEvents.some(ev => {
+    const evStart = new Date(ev.start);
+    const evEnd = new Date(ev.end);
+    // Overlap if start < evEnd AND end > evStart
+    return start < evEnd && end > evStart;
+  });
+}
+
+function getNonDuplicates() {
+  const today = new Date();
+  return planData.filter(b => !overlapsCalendar(b, today));
+}
+
+function showPickEvents() {
+  const today = new Date();
+  const list = document.getElementById("event-picker-list");
+  const nonDups = getNonDuplicates();
+  const skipped = planData.length - nonDups.length;
+
+  list.innerHTML = planData.map((b, i) => {
+    const overlaps = overlapsCalendar(b, today);
+    const bizNames = BUSINESSES.map(bz => bz.short);
+    bizNames.push("Admin/break");
+    const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);${overlaps?"opacity:0.45":""}">
+      <input type="checkbox" id="pick-${i}" ${overlaps?"disabled":"checked"} style="width:16px;height:16px;cursor:${overlaps?"not-allowed":"pointer"};" />
+      <div style="width:3px;height:32px;border-radius:2px;background:${colors[b.biz]||"var(--text3)"};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${b.title}</div>
+        <div style="font-size:11px;color:var(--text2);">${b.time} · ${bizNames[b.biz]||"Other"}</div>
+      </div>
+      ${overlaps ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--amber-light);color:var(--amber-dark);flex-shrink:0;">Already on calendar</span>' : ""}
+    </div>`;
+  }).join("");
+
+  if (skipped > 0) {
+    list.innerHTML += `<p style="font-size:12px;color:var(--text3);margin-top:6px;">${skipped} event${skipped!==1?"s":""} grayed out — already exist on your calendar and won't be pushed.</p>`;
+  }
+
+  document.getElementById("event-picker").style.display = "block";
+  document.getElementById("event-picker").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function toggleAllEvents(checked) {
+  planData.forEach((b, i) => {
+    const today = new Date();
+    if (!overlapsCalendar(b, today)) {
+      const cb = document.getElementById("pick-" + i);
+      if (cb) cb.checked = checked;
+    }
+  });
+}
+
+function toICS(events) {
+  const today = new Date();
+  const bizNames = BUSINESSES.map(b => b.short);
+  bizNames.push("Admin/break");
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Daily Command Center//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH"
+  ];
+  events.forEach(ev => {
+    const { start, end } = parseTimeBlock(ev.time, today);
+    if (!start || !end) return;
+    const fmtDate = d => d.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+    lines.push(
+      "BEGIN:VEVENT",
+      `DTSTART:${fmtDate(start)}`,
+      `DTEND:${fmtDate(end)}`,
+      `SUMMARY:${ev.title}`,
+      `DESCRIPTION:${ev.desc} [${bizNames[ev.biz]||"Other"}]`,
+      `UID:dcc-${Date.now()}-${Math.random().toString(36).slice(2)}@dailycommandcenter`,
+      "END:VEVENT"
+    );
+  });
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+function downloadICS(events, label) {
+  if (!events.length) {
+    showToast("No events to push — all blocks already exist on your calendar.");
+    return;
+  }
+  const ics = toICS(events);
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `day-plan-${todayStr()}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`${events.length} event${events.length!==1?"s":""} downloaded — open the .ics file to add to your calendar.`);
+  document.getElementById("push-note").textContent = `${events.length} event${events.length!==1?"s":""} exported. Double-click the downloaded file to import.`;
+  document.getElementById("event-picker").style.display = "none";
+}
+
+async function pushToCalendar(mode) {
+  if (!planData.length) return;
+
+  if (mode === "all") {
+    const toExport = getNonDuplicates();
+    const skipped = planData.length - toExport.length;
+    if (skipped > 0) showToast(`Skipping ${skipped} event${skipped!==1?"s":""} already on your calendar.`);
+    downloadICS(toExport, "all");
+  } else if (mode === "picked") {
+    const toExport = planData.filter((b, i) => {
+      const cb = document.getElementById("pick-" + i);
+      return cb && cb.checked && !cb.disabled;
+    });
+    downloadICS(toExport, "picked");
+  }
+}
+
+// ── END OF DAY WRAP ───────────────────────────────────────────
+let eodRecognition = null;
+let eodListening = false;
+
+function renderRolloverList() {
+  const incomplete = tasks.filter(t => !t.done);
+  const list = document.getElementById("rollover-task-list");
+  if (!incomplete.length) {
+    list.innerHTML = `<div style="font-size:13px;color:var(--text3);padding:8px 0;">No incomplete tasks — great work today!</div>`;
+    return;
+  }
+  list.innerHTML = incomplete.map(t => `
+    <div class="rollover-task">
+      <label>
+        <input type="checkbox" id="rollover-${t.id}" checked style="width:15px;height:15px;cursor:pointer;" />
+        <span>${t.text}</span>
+      </label>
+      <span class="task-biz">${BUSINESSES[t.biz].short} · ${t.pri}</span>
+    </div>`).join("");
+}
+
+async function runEodWrap() {
+  const dump = document.getElementById("eod-dump").value.trim();
+  if (!dump) { alert("Tell me how the day went first!"); return; }
+  if (eodListening && eodRecognition) eodRecognition.stop();
+  const out = document.getElementById("eod-out");
+  const eodText = document.getElementById("eod-text");
+  out.style.display = "block";
+  eodText.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`;
+
+  const incomplete = tasks.filter(t => !t.done);
+  const done = tasks.filter(t => t.done);
+  const completedList = done.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text}`).join("\n") || "None";
+  const incompleteList = incomplete.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text} (${t.pri})`).join("\n") || "None";
+
+  const sys = `You are an AI chief of staff helping an entrepreneur close out their day and set up tomorrow. They run ${BUSINESSES.length} businesses/roles:
+${bizContext()}
+
+Given their end-of-day brain dump and task summary, provide:
+1. A brief acknowledgment of what got done today (1-2 sentences, specific)
+2. Key wins or insights from what they shared
+3. Tomorrow's top 3 priorities across all businesses (be specific, not generic)
+4. One sharp strategic note to sleep on
+
+Be warm but direct. Keep it concise — this is a wrap, not a report.`;
+
+  const userMsg = `Today's completed tasks:\n${completedList}\n\nIncomplete tasks:\n${incompleteList}\n\nEnd of day brain dump:\n${dump}`;
+
+  try {
+    const response = await callClaude(sys, userMsg, 1000);
+    eodText.textContent = response;
+    // Store tomorrow's priorities for morning pre-population
+    localStorage.setItem("dcc_tomorrow_context", response);
+  } catch(e) {
+    eodText.textContent = "Error: " + e.message;
+  }
+}
+
+function startNewDay() {
+  // Collect which incomplete tasks to roll over
+  const incomplete = tasks.filter(t => !t.done);
+  const toRollover = incomplete.filter(t => {
+    const cb = document.getElementById("rollover-" + t.id);
+    return cb ? cb.checked : true;
+  });
+
+  // Reset to new day
+  const tomorrow = toRollover.map(t => ({
+    ...t,
+    done: false,
+    rolledOver: true
+  }));
+
+  tasks = tomorrow;
+  nextId = tasks.length ? Math.max(...tasks.map(t=>t.id)) + 1 : 1;
+
+  // Advance the saved date to today (will be treated as new day on next open too)
+  const tomorrow_date = new Date();
+  tomorrow_date.setDate(tomorrow_date.getDate() + 1);
+  localStorage.setItem("dcc_last_date", tomorrow_date.toISOString().split("T")[0]);
+  saveTasks();
+
+  // Reset UI state
+  planData = [];
+  lastCheckinOutput = "";
+  document.getElementById("brain-dump").value = "";
+  document.getElementById("ai-out").style.display = "none";
+  document.getElementById("eod-dump").value = "";
+  document.getElementById("eod-out").style.display = "none";
+  document.getElementById("plan-grid").innerHTML = `<div class="empty-state">No day plan yet.<br>Run your morning check-in and tap "Turn this into my day plan."</div>`;
+  document.getElementById("push-all-btn").style.display = "none";
+  document.getElementById("push-pick-btn").style.display = "none";
+
+  // Pre-populate morning check-in with tomorrow context if available
+  const tomorrowCtx = localStorage.getItem("dcc_tomorrow_context");
+  if (tomorrowCtx) {
+    const preview = `Tomorrow's priorities (from last night):\n${tomorrowCtx.split("\n").slice(0,6).join("\n")}`;
+    document.getElementById("brain-dump").placeholder = preview.substring(0, 200) + "...";
+  }
+
+  // Update date display
+  const now = new Date();
+  document.getElementById("datebadge").textContent = now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const h = now.getHours();
+  document.getElementById("checkin-greeting").textContent = h<12?"Good morning!":h<17?"Good afternoon!":"Good evening!";
+
+  renderBizGrid();
+  renderTasks();
+  switchTab("checkin");
+  showToast("New day started! " + toRollover.length + " task" + (toRollover.length!==1?"s":"") + " rolled over.");
+}
+
+function toggleEodVoice() {
+  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+    alert("Voice not supported in this browser. Try Chrome."); return;
+  }
+  if (!eodRecognition) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    eodRecognition = new SR();
+    eodRecognition.continuous = true;
+    eodRecognition.interimResults = true;
+    eodRecognition.lang = "en-US";
+    let finalT = "", existingT = "";
+    eodRecognition.onstart = () => {
+      eodListening = true;
+      existingT = document.getElementById("eod-dump").value;
+      finalT = "";
+      document.getElementById("eod-mic-btn").classList.add("active");
+      document.getElementById("eod-voice-status").innerHTML = `<span class="pulse"></span> Listening...`;
+    };
+    eodRecognition.onresult = (e) => {
+      let interim = ""; finalT = "";
+      for (let i=0;i<e.results.length;i++) {
+        if (e.results[i].isFinal) finalT += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
+      }
+      document.getElementById("eod-dump").value = existingT + (existingT&&finalT?"\n":"") + finalT + interim;
+    };
+    eodRecognition.onend = () => {
+      eodListening = false;
+      document.getElementById("eod-mic-btn").classList.remove("active");
+      document.getElementById("eod-voice-status").innerHTML = "";
+      if (finalT.trim()) document.getElementById("eod-dump").value = existingT + (existingT?"\n":"") + finalT.trim();
+    };
+    eodRecognition.onerror = (e) => {
+      eodListening = false;
+      document.getElementById("eod-mic-btn").classList.remove("active");
+      document.getElementById("eod-voice-status").innerHTML = `<span style="color:var(--coral-dark);">Mic error: ${e.error}</span>`;
+    };
+  }
+  if (eodListening) eodRecognition.stop();
+  else eodRecognition.start();
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────
+let selectedCalType = "google";
+
+function selectCalType(type) {
+  selectedCalType = type;
+  ["google","outlook","apple","none"].forEach(t => {
+    document.getElementById("cal-btn-" + t).classList.toggle("active", t === type);
+    document.getElementById("cal-instructions-" + t).style.display = t === type ? "block" : "none";
+  });
+}
+
+function obGetCalendarUrl() {
+  if (selectedCalType === "google") {
+    return document.getElementById("ob-calendar-url").value.trim();
+  } else if (selectedCalType === "outlook") {
+    return document.getElementById("ob-calendar-url-outlook").value.trim();
+  }
+  return "";
+}
+
+function obAddBiz() {
+  if (obBizCount >= 6) return;
+  const list = document.getElementById("ob-biz-list");
+  const id = ++obBizCount;
+  const colors = ["#378ADD","#1D9E75","#D85A30","#D4537E","#EF9F27","#7F77DD"];
+  const div = document.createElement("div");
+  div.className = "ob-biz-row";
+  div.id = "ob-biz-row-" + id;
+  div.innerHTML = `
+    <div style="width:10px;height:10px;border-radius:50%;background:${colors[(id-1)%6]};flex-shrink:0;margin-top:12px;"></div>
+    <input class="ob-biz-name" type="text" id="ob-biz-name-${id}" placeholder="Business or role name..." />
+    <input class="ob-biz-role" type="text" id="ob-biz-role-${id}" placeholder="Your role or description..." />
+    <button class="ob-biz-remove" onclick="obRemoveBiz(${id})">×</button>`;
+  list.appendChild(div);
+}
+
+function obRemoveBiz(id) {
+  const row = document.getElementById("ob-biz-row-" + id);
+  if (row) row.remove();
+}
+
+function obGoToStep(step) {
+  document.querySelectorAll(".ob-step").forEach(s => s.style.display = "none");
+  document.getElementById("ob-step-" + step).style.display = "block";
+  document.querySelectorAll(".step-dot").forEach((d, i) => {
+    d.classList.toggle("active", i + 1 === step);
+  });
+}
+
+function obNext(currentStep) {
+  if (currentStep === 1) {
+    const name = document.getElementById("ob-name").value.trim();
+    if (!name) { document.getElementById("ob-name").focus(); return; }
+    obGoToStep(2);
+  } else if (currentStep === 2) {
+    const businesses = obGetBizList();
+    if (!businesses.length) { alert("Please add at least one business or role."); return; }
+    obGoToStep(3);
+  } else if (currentStep === 3) {
+    obGoToStep(4);
+  }
+}
+
+function obBack(currentStep) {
+  obGoToStep(currentStep - 1);
+}
+
+function obGetBizList() {
+  const results = [];
+  for (let i = 1; i <= obBizCount; i++) {
+    const nameEl = document.getElementById("ob-biz-name-" + i);
+    const roleEl = document.getElementById("ob-biz-role-" + i);
+    if (nameEl && nameEl.value.trim()) {
+      results.push({ name: nameEl.value.trim(), role: roleEl ? roleEl.value.trim() : "" });
+    }
+  }
+  return results;
+}
+
+function obFinish() {
+  const name = document.getElementById("ob-name").value.trim();
+  const businesses = obGetBizList();
+  const calUrl = obGetCalendarUrl();
+  const key = document.getElementById("ob-api-key").value.trim().replace(/\s+/g,"");
+  const statusEl = document.getElementById("ob-api-status");
+
+  if (!key) { statusEl.textContent = "Please enter your API key to continue."; return; }
+  if (!key.startsWith("sk-")) { statusEl.textContent = "That doesn't look right — it should start with sk-ant-"; return; }
+
+  // Save everything
+  const cfg = { name, businesses, calendarUrl: calUrl, calendarType: selectedCalType };
+  saveConfig(cfg);
+  localStorage.setItem("dcc_api_key", key);
+
+  // Hide onboarding, show app
+  document.getElementById("onboarding").style.display = "none";
+  document.getElementById("main-app").style.display = "block";
+
+  // Boot the app
+  apiKey = key;
+  loadConfig();
+  const now = new Date();
+  document.getElementById("datebadge").textContent = now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const h = now.getHours();
+  document.getElementById("checkin-greeting").textContent = (h<12?"Good morning":h<17?"Good afternoon":"Good evening") + (name ? ", " + name : "") + "!";
+  document.getElementById("api-setup").style.display = "none";
+  loadTasks();
+  renderBizGrid();
+  renderTasks();
+  if (calUrl) loadCalendar();
+  initVoice();
+  showToast("Welcome, " + name + "! Your command center is ready.");
+}
+
+function copyScriptCode() {
+  const code = `function doGet() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0);
+  const end = new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59);
+  const cal = CalendarApp.getDefaultCalendar();
+  const events = cal.getEvents(start,end).map(e=>({
+    title:e.getTitle(),
+    start:e.getStartTime().toISOString(),
+    end:e.getEndTime().toISOString()
+  }));
+  events.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  return ContentService.createTextOutput(JSON.stringify(events)).setMimeType(ContentService.MimeType.JSON);
+}`;
+  navigator.clipboard.writeText(code).then(() => showToast("Script code copied!"));
+}
+
+// Settings — allow editing config after onboarding
+function openSettings() {
+  const cfg = getConfig();
+  if (!cfg) return;
+  const newName = prompt("Your name:", cfg.name || "");
+  if (newName === null) return;
+  const calType = prompt("Calendar type (google / outlook / apple / none):", cfg.calendarType || "google");
+  if (calType === null) return;
+  const newCal = (calType === "google" || calType === "outlook")
+    ? prompt("Calendar bridge URL (leave blank to skip):", cfg.calendarUrl || "")
+    : null;
+  if (newCal === null && calType !== "apple" && calType !== "none") return;
+  cfg.name = newName.trim();
+  cfg.calendarType = calType.trim();
+  if (newCal && newCal.trim()) cfg.calendarUrl = newCal.trim();
+  saveConfig(cfg);
+  loadConfig();
+  showToast("Settings saved!");
+  if (cfg.calendarUrl) loadCalendar();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+// ── STRATEGIC LAB ─────────────────────────────────────────────
+let labHistory = [];
+let labRecognition = null;
+let labListening = false;
+
+function getLabSystem() {
+  return `You are a strategic thinking partner for an entrepreneur with ${BUSINESSES.length} businesses/roles:
+${bizContext()}
+
+Your role is to help them think deeply, develop ideas, design systems, build processes, and spot opportunities. Be sharp, specific, and practical — not generic. When you suggest actionable tasks, clearly label them with [TASK] so they can push them to their task list. Format [TASK] items as: [TASK: Business name] Description of task.`;
+}
+
+function getLabInsight() {
+  // Pull the strategic insight line from the last checkin output
+  if (!lastCheckinOutput) return "";
+  const lines = lastCheckinOutput.split("\n");
+  const insightLine = lines.find(l => l.toLowerCase().includes("strategic") || l.toLowerCase().includes("insight") || l.toLowerCase().includes("note:"));
+  if (insightLine) return insightLine.replace(/^[^:]+:/,"").trim();
+  // fallback: last non-empty line
+  const nonEmpty = lines.filter(l=>l.trim());
+  return nonEmpty[nonEmpty.length-1] || "";
+}
+
+function openLabWithInsight() {
+  switchTab("lab");
+  const insight = getLabInsight();
+  if (insight && labHistory.length === 0) {
+    appendLabBubble("ai", `Here's the strategic insight from your morning check-in:\n\n"${insight}"\n\nWhat would you like to do with this? You can ask me to develop it further, turn it into a system, find a way to monetize it, or explore how it applies to one of your businesses.`);
+  }
+}
+
+function labStarter(type) {
+  const insight = getLabInsight();
+  const starters = {
+    develop: insight ? `Let's develop this insight further: "${insight}"` : "Help me develop the key strategic insight from my day.",
+    system: insight ? `Help me turn this into a repeatable system: "${insight}"` : "Help me design a system I can use consistently across my businesses.",
+    tool: insight ? `What tool or automation could I build around this: "${insight}"` : "What tools or automations could make my businesses more efficient?",
+    process: insight ? `Build a repeatable process based on this: "${insight}"` : "Help me build a repeatable process for my most important recurring work.",
+    revenue: insight ? `How can I generate revenue from this idea: "${insight}"` : "What are the highest-leverage revenue opportunities across my 4 businesses right now?",
+    adoption: insight ? `How can I apply this to my Adoption 501c3: "${insight}"` : "Help me think through the strategy for my Adoption 501c3 — both the fundraising side and the AI grant application system."
+  };
+  document.getElementById("lab-input").value = starters[type] || "";
+  sendLabMessage();
+}
+
+async function sendLabMessage() {
+  const input = document.getElementById("lab-input");
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (labListening && labRecognition) labRecognition.stop();
+  input.value = "";
+
+  appendLabBubble("user", msg);
+  labHistory.push({ role: "user", content: msg });
+
+  const thread = document.getElementById("lab-thread");
+  const loadingId = "lab-loading-" + Date.now();
+  thread.innerHTML += `<div id="${loadingId}" class="lab-bubble ai"><div class="bubble-label">Strategic lab</div><span class="loading-dots"><span></span><span></span><span></span></span></div>`;
+  thread.scrollTop = thread.scrollHeight;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1500,
+        system: getLabSystem(),
+        messages: labHistory
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.content?.map(b=>b.text||"").join("")||"";
+    labHistory.push({ role: "assistant", content: reply });
+
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) {
+      // Extract any [TASK] items
+      const taskMatches = [...reply.matchAll(/\[TASK(?::\s*([^\]]+))?\]\s*(.+)/g)];
+      const cleanReply = reply.replace(/\[TASK(?::[^\]]+)?\]\s*/g, "").trim();
+
+      let actionsHtml = "";
+      if (taskMatches.length) {
+        const taskButtons = taskMatches.map((m,i) =>
+          `<button onclick="addLabTask(${i})" style="font-size:11px;padding:3px 10px;">+ Add to tasks: "${m[2].substring(0,40)}${m[2].length>40?'…':''}"</button>`
+        ).join("");
+        actionsHtml = `<div class="lab-actions">${taskButtons}</div>`;
+        // Store tasks temporarily
+        window._labPendingTasks = taskMatches.map(m=>({
+          biz: bizFromLabel(m[1]||""),
+          text: m[2].trim()
+        }));
+      }
+
+      loadingEl.innerHTML = `<div class="bubble-label">Strategic lab</div>${cleanReply}${actionsHtml}`;
+      thread.scrollTop = thread.scrollHeight;
+    }
+  } catch(e) {
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.innerHTML = `<div class="bubble-label">Strategic lab</div>Error: ${e.message}`;
+  }
+}
+
+function appendLabBubble(role, text) {
+  const thread = document.getElementById("lab-thread");
+  const div = document.createElement("div");
+  div.className = "lab-bubble " + role;
+  if (role === "ai") div.innerHTML = `<div class="bubble-label">Strategic lab</div>${text}`;
+  else div.textContent = text;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function addLabTask(i) {
+  const t = (window._labPendingTasks||[])[i];
+  if (!t) return;
+  tasks.push({ id: nextId++, text: t.text, biz: t.biz, pri: "high", done: false });
+  saveTasks(); renderTasks(); renderBizGrid();
+  showToast("Task added to your list!");
+}
+
+function bizFromLabel(label) {
+  const l = (label||"").toLowerCase();
+  if (l.includes("tlwb")||l.includes("tax lien")||l.includes("wealth")) return 0;
+  if (l.includes("sales")||l.includes("coaching")) return 1;
+  if (l.includes("real estate")||l.includes("novation")) return 2;
+  if (l.includes("adopt")||l.includes("501")) return 3;
+  return 0;
+}
+
+function clearLab() {
+  labHistory = [];
+  window._labPendingTasks = [];
+  document.getElementById("lab-thread").innerHTML = "";
+  document.getElementById("lab-input").value = "";
+}
+
+function toggleLabVoice() {
+  if (!recognition) { alert("Voice not supported in this browser. Try Chrome."); return; }
+  if (!labRecognition) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    labRecognition = new SpeechRecognition();
+    labRecognition.continuous = true;
+    labRecognition.interimResults = true;
+    labRecognition.lang = "en-US";
+    let finalT = "", existingT = "";
+    labRecognition.onstart = () => {
+      labListening = true;
+      existingT = document.getElementById("lab-input").value;
+      finalT = "";
+      document.getElementById("lab-mic-btn").classList.add("active");
+      document.getElementById("lab-voice-status").innerHTML = `<span class="pulse"></span> Listening...`;
+    };
+    labRecognition.onresult = (e) => {
+      let interim = ""; finalT = "";
+      for (let i=0;i<e.results.length;i++) {
+        if (e.results[i].isFinal) finalT += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
+      }
+      document.getElementById("lab-input").value = existingT + (existingT&&finalT?"\n":"") + finalT + interim;
+    };
+    labRecognition.onend = () => {
+      labListening = false;
+      document.getElementById("lab-mic-btn").classList.remove("active");
+      document.getElementById("lab-voice-status").innerHTML = "";
+      if (finalT.trim()) document.getElementById("lab-input").value = existingT + (existingT?"\n":"") + finalT.trim();
+    };
+    labRecognition.onerror = (e) => {
+      labListening = false;
+      document.getElementById("lab-mic-btn").classList.remove("active");
+      document.getElementById("lab-voice-status").innerHTML = `<span style="color:var(--coral-dark);">Mic error: ${e.error}</span>`;
+    };
+  }
+  if (labListening) labRecognition.stop();
+  else labRecognition.start();
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 3500);
+}
+
+init();
+
+// Register service worker for PWA offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
