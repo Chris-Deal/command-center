@@ -192,6 +192,8 @@
   .ob-biz-remove { font-size:18px; color:var(--text3); background:none; border:none; cursor:pointer; padding:6px; line-height:1; flex-shrink:0; margin-top:2px; }
   .ob-biz-remove:hover { color:var(--coral-dark); }
   .settings-link { font-size:12px; color:var(--text3); cursor:pointer; text-decoration:underline; }
+  #biz-edit-modal { display:none; }
+  #biz-edit-modal.open { display:flex !important; }
   .cal-type-btn { font-size:12px; padding:6px 14px; border-radius:20px; border:0.5px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; font-family:var(--font); transition:all 0.15s; }
   .cal-type-btn:hover { background:var(--bg2); }
   .cal-type-btn.active { background:var(--text); color:var(--bg); border-color:var(--text); }
@@ -575,6 +577,26 @@
   </div>
 </div><!-- end main-app -->
 
+<!-- Business edit modal -->
+<div id="biz-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--bg);border-radius:var(--radius-lg);padding:20px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div class="section-label" style="margin-bottom:14px;">Edit business / role</div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:5px;">Name</label>
+      <input type="text" id="biz-edit-name" style="width:100%;font-family:var(--font);font-size:14px;padding:9px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);" />
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:5px;">Role / description</label>
+      <input type="text" id="biz-edit-role" style="width:100%;font-family:var(--font);font-size:14px;padding:9px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);" />
+    </div>
+    <div class="btn-row">
+      <button class="primary" onclick="saveBizEdit()">Save changes</button>
+      <button onclick="closeBizEdit()">Cancel</button>
+      <button onclick="deleteBiz()" style="margin-left:auto;color:var(--coral-dark);border-color:var(--coral-dark);">Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -860,11 +882,12 @@ function renderBizGrid() {
     <div class="biz-card ${selectedBiz===i?"sel-"+i:""}" onclick="selectBiz(${i})">
       <div style="display:flex;align-items:flex-start;gap:7px;">
         <span class="biz-dot dot-${i}"></span>
-        <div>
+        <div style="flex:1;min-width:0;">
           <div class="biz-name">${b.name}</div>
           <div class="biz-role">${b.role}</div>
           <div class="biz-count">${tasks.filter(t=>t.biz===i&&!t.done).length} pending</div>
         </div>
+        <button onclick="event.stopPropagation();editBiz(${i})" style="background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);font-size:13px;line-height:1;flex-shrink:0;" title="Edit">✎</button>
       </div>
     </div>`).join("");
 }
@@ -1678,6 +1701,93 @@ function openSettings() {
   showToast("Settings saved!");
   if (cfg.calendarUrl) loadCalendar();
 }
+
+// ── BUSINESS EDITING ──────────────────────────────────────────
+let editingBizIndex = -1;
+
+function editBiz(i) {
+  editingBizIndex = i;
+  document.getElementById("biz-edit-name").value = BUSINESSES[i].name;
+  document.getElementById("biz-edit-role").value = BUSINESSES[i].role;
+  document.getElementById("biz-edit-modal").classList.add("open");
+  setTimeout(() => document.getElementById("biz-edit-name").focus(), 50);
+}
+
+function closeBizEdit() {
+  document.getElementById("biz-edit-modal").classList.remove("open");
+  editingBizIndex = -1;
+}
+
+function saveBizEdit() {
+  if (editingBizIndex < 0) return;
+  const name = document.getElementById("biz-edit-name").value.trim();
+  const role = document.getElementById("biz-edit-role").value.trim();
+  if (!name) { document.getElementById("biz-edit-name").focus(); return; }
+
+  // Update BUSINESSES array
+  BUSINESSES[editingBizIndex].name = name;
+  BUSINESSES[editingBizIndex].role = role;
+  BUSINESSES[editingBizIndex].short = name.length > 14 ? name.substring(0, 14) + "…" : name;
+
+  // Persist to config
+  const cfg = getConfig();
+  if (cfg && cfg.businesses) {
+    cfg.businesses[editingBizIndex] = { name, role };
+    saveConfig(cfg);
+  }
+
+  closeBizEdit();
+  renderBizGrid();
+  renderTasks(); // Update task biz labels
+  updateFilterPills(); // Update filter pills with new name
+  showToast("Business updated!");
+}
+
+function deleteBiz() {
+  if (editingBizIndex < 0) return;
+  if (BUSINESSES.length <= 1) { showToast("You need at least one business."); return; }
+  const name = BUSINESSES[editingBizIndex].name;
+  if (!confirm(`Delete "${name}"? Tasks assigned to it will move to your first business.`)) return;
+
+  // Reassign tasks from deleted business
+  tasks.forEach(t => {
+    if (t.biz === editingBizIndex) t.biz = 0;
+    else if (t.biz > editingBizIndex) t.biz--;
+  });
+  saveTasks();
+
+  // Remove from BUSINESSES
+  BUSINESSES.splice(editingBizIndex, 1);
+
+  // Persist to config
+  const cfg = getConfig();
+  if (cfg && cfg.businesses) {
+    cfg.businesses.splice(editingBizIndex, 1);
+    saveConfig(cfg);
+  }
+
+  closeBizEdit();
+  if (selectedBiz >= BUSINESSES.length) selectedBiz = null;
+  renderBizGrid();
+  renderTasks();
+  updateFilterPills();
+  showToast(`"${name}" deleted.`);
+}
+
+function updateFilterPills() {
+  // Rebuild filter pills to match current businesses
+  const pillContainer = document.getElementById("filter-pills");
+  if (!pillContainer) return;
+  const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+  pillContainer.innerHTML = `<button class="filter-pill ${selectedBiz===null?"active-all":""}" onclick="setFilter(null)">All businesses</button>` +
+    BUSINESSES.map((b,i) => `<button class="filter-pill ${selectedBiz===i?"active-"+i:""}" onclick="setFilter(${i})"><span class="pill-dot" style="background:${colors[i]}"></span>${b.short}</button>`).join("");
+}
+
+// Close modal on backdrop click
+document.addEventListener("click", e => {
+  const modal = document.getElementById("biz-edit-modal");
+  if (modal && modal.classList.contains("open") && e.target === modal) closeBizEdit();
+});
 
 // ── TOAST ─────────────────────────────────────────────────────
 // ── STRATEGIC LAB ─────────────────────────────────────────────
