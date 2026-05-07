@@ -1019,15 +1019,34 @@ async function generatePlan() {
     :"No fixed calendar events today.";
   const brainDump = document.getElementById("brain-dump").value.trim();
   const checkinContext = lastCheckinOutput
-    ? `\n\nLatest brain dump & AI priorities (use this to inform scheduling — this is the most up to date picture of the day):\n${lastCheckinOutput}`
+    ? `\n\nLatest organized priorities from morning check-in (IMPORTANT: make sure every item mentioned here gets scheduled — do not drop any):\n${lastCheckinOutput}`
     : brainDump
-      ? `\n\nRaw brain dump (not yet organized):\n${brainDump}`
+      ? `\n\nRaw brain dump (schedule everything mentioned here):\n${brainDump}`
       : "";
-  const sys=`You are a time-block day planner. Output a JSON array of time blocks. Keep it to a maximum of 12 blocks. Each block must have exactly: { "time": "9:00am–10:00am", "title": "short title", "desc": "one sentence", "biz": 0 } where biz is 0=TLWB, 1=Sales coaching, 2=Real estate, 3=Adoption 501c3, 4=break or admin. Place fixed calendar events at their exact times first, then schedule tasks around them. Use any brain dump or priority context to inform the order and emphasis of tasks. Start around 8am, end by 6pm. Output ONLY the raw JSON array, no markdown, no explanation. Make sure the JSON is complete and valid — do not truncate.`;
+
+  // Build dynamic biz index for the AI
+  const bizIndex = BUSINESSES.map((b,i) => `${i}=${b.short}`).join(", ");
+  const adminIndex = BUSINESSES.length;
+
+  const sys=`You are a time-block day planner. Output a JSON array of time blocks.
+
+CRITICAL RULES:
+- Schedule EVERY task from the task list — do not skip any
+- Schedule EVERY item mentioned in the morning check-in priorities — do not skip any
+- Fixed calendar events go at their exact times and cannot be moved
+- Start around 8am, end by 6pm
+- Combine very small tasks into one block if needed to fit everything
+- There is no block limit — use as many blocks as needed to fit everything
+
+Each block must have exactly: { "time": "9:00am–10:00am", "title": "short title max 5 words", "desc": "one sentence", "biz": 0 }
+where biz is: ${bizIndex}, ${adminIndex}=break or admin
+
+Output ONLY the raw JSON array, no markdown, no explanation. Ensure the JSON is complete and valid.`;
+
   try {
-    const raw = await callClaude(sys, `${calFixed}\n\nTasks:\n${taskList}${checkinContext}`, 2000);
+    const raw = await callClaude(sys, `${calFixed}\n\nTask list (schedule ALL of these):\n${taskList}${checkinContext}`, 2500);
     let clean = raw.replace(/```json|```/g,"").trim();
-    // Repair truncated JSON — close any open array
+    // Repair truncated JSON
     if (!clean.endsWith("]")) {
       const lastGood = clean.lastIndexOf("},");
       const lastObj = clean.lastIndexOf("}");
