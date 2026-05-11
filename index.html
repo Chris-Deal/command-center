@@ -383,6 +383,7 @@
     <button class="tab" onclick="switchTab('plan')">Day plan</button>
     <button class="tab" onclick="switchTab('lab')">Strategic lab</button>
     <button class="tab" onclick="switchTab('wrap')">End of day</button>
+    <button class="tab" onclick="switchTab('review')">Weekly review</button>
   </div>
 
   <div class="section-label">Your businesses</div>
@@ -527,6 +528,14 @@
       <div class="section-label" style="margin-bottom:4px;">End of day wrap</div>
       <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">Capture what happened, what didn't, and what tomorrow needs. Your best thinking happens while today is still fresh.</p>
 
+      <!-- Tomorrow's calendar -->
+      <div id="tmrw-cal-section" style="display:none;margin-bottom:18px;">
+        <div class="cal-strip-header" style="margin-bottom:8px;">
+          <span class="section-label" style="margin:0;">Tomorrow's scheduled events</span>
+        </div>
+        <div id="tmrw-cal-list" style="display:flex;flex-direction:column;gap:0;"></div>
+      </div>
+
       <!-- Day plan reconciliation -->
       <div id="plan-reconcile-section" style="display:none;margin-bottom:18px;">
         <div class="section-label" style="margin-bottom:8px;">Today's planned blocks — what actually got done?</div>
@@ -543,7 +552,7 @@
 
       <!-- EOD brain dump -->
       <div class="section-label" style="margin-bottom:8px;">Brain dump — how did the day go?</div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Skip anything already captured above — focus on what came up unexpectedly, new ideas, and what tomorrow needs.</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">Focus on what came up unexpectedly, new ideas, and what tomorrow needs.</p>
       <div class="textarea-wrap">
         <textarea id="eod-dump" placeholder="e.g. Client call ran over so novation research got cut short... great idea came up about systemizing intake... feeling good about tomorrow..." style="min-height:90px;"></textarea>
         <button class="mic-btn" id="eod-mic-btn" onclick="toggleEodVoice()" title="Dictate" style="top:10px;">
@@ -562,22 +571,96 @@
           <div class="ai-label">Tomorrow's setup</div>
           <div class="ai-content" id="eod-text"></div>
         </div>
+
+        <!-- Tomorrow's day plan -->
+        <div id="tmrw-plan-section" style="display:none;margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div class="section-label" style="margin:0;">Tomorrow's day plan</div>
+            <div style="display:flex;gap:8px;">
+              <button id="tmrw-push-all" onclick="pushTomorrowPlan('all')" style="font-size:12px;padding:5px 12px;">Push all to calendar ↗</button>
+              <button id="tmrw-push-pick" onclick="showTmrwPicker()" style="font-size:12px;padding:5px 12px;">Choose events ↗</button>
+            </div>
+          </div>
+          <div id="tmrw-plan-grid" style="display:flex;flex-direction:column;gap:6px;"></div>
+          <div id="tmrw-event-picker" style="display:none;margin-top:12px;background:var(--bg3);border-radius:var(--radius);padding:12px;">
+            <div id="tmrw-picker-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+            <div class="btn-row">
+              <button class="primary" onclick="pushTomorrowPlan('picked')" style="font-size:12px;">Push selected ↗</button>
+              <button onclick="document.getElementById('tmrw-event-picker').style.display='none'" style="font-size:12px;">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <!-- New ideas extracted from brain dump -->
         <div id="eod-new-tasks" style="display:none;margin-top:14px;">
           <div class="section-label" style="margin-bottom:8px;">New ideas & action items — add to tomorrow</div>
           <div id="eod-new-tasks-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
           <button onclick="addAllNewTasks()" style="font-size:12px;padding:5px 12px;">Add all to tasks</button>
         </div>
-        <div class="btn-row">
+
+        <div class="btn-row" style="margin-top:14px;">
           <button class="primary" onclick="startNewDay()">Start new day ↗</button>
           <span style="font-size:12px;color:var(--text3);align-self:center;">Rolls over selected tasks, clears today, loads tomorrow</span>
         </div>
       </div>
     </div>
   </div>
+  <!-- WEEKLY REVIEW -->
+  <div id="view-review" class="view">
+    <div class="card" style="margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:4px;">Weekly review</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px;">Zoom out, assess the week, and set your direction for next week. Best done Friday afternoon.</p>
+
+      <div class="section-label" style="margin-bottom:8px;">Week brain dump</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:8px;">What happened this week across your businesses? Wins, challenges, surprises, ideas, patterns you noticed.</p>
+      <div class="textarea-wrap">
+        <textarea id="review-dump" placeholder="e.g. TLWB had two strong student closings... novation pipeline stalled on the Memphis deal... 501c3 research revealed a promising grant... sales coaching proposal still pending from Tuesday call..." style="min-height:120px;"></textarea>
+        <button class="mic-btn" id="review-mic-btn" onclick="toggleReviewVoice()" title="Dictate" style="top:10px;">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z" fill="currentColor"/><path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="voice-status" id="review-voice-status"></div>
+      <div class="btn-row">
+        <button class="primary" onclick="runWeeklyReview()">Generate weekly review ↗</button>
+        <button onclick="generateWeeklySnapshot()">Weekly snapshot ↗</button>
+        <button onclick="document.getElementById('review-dump').value=''">Clear</button>
+      </div>
+
+      <div id="review-out" style="display:none;">
+        <div class="ai-box" style="margin-top:14px;">
+          <div class="ai-label">Weekly review</div>
+          <div class="ai-content" id="review-text"></div>
+        </div>
+        <div id="review-new-tasks" style="display:none;margin-top:14px;">
+          <div class="section-label" style="margin-bottom:8px;">Action items for next week</div>
+          <div id="review-new-tasks-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+          <button onclick="addAllReviewTasks()" style="font-size:12px;padding:5px 12px;">Add all to tasks</button>
+        </div>
+      </div>
+
+      <!-- Weekly snapshot -->
+      <div id="snapshot-out" style="display:none;margin-top:14px;">
+        <div class="ai-box">
+          <div class="ai-label">Weekly snapshot</div>
+          <div class="ai-content" id="snapshot-text"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div><!-- end main-app -->
 
-<!-- Business edit modal -->
+<!-- Task notes modal -->
+<div id="task-notes-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--bg);border-radius:var(--radius-lg);padding:20px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div class="section-label" style="margin-bottom:4px;" id="task-notes-title">Task notes</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;" id="task-notes-name"></div>
+    <textarea id="task-notes-input" style="width:100%;min-height:100px;font-family:var(--font);font-size:13px;padding:10px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);resize:vertical;" placeholder="Add notes, context, links, or next steps..."></textarea>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="primary" onclick="saveTaskNotes()">Save notes</button>
+      <button onclick="closeTaskNotes()">Cancel</button>
+    </div>
+  </div>
+</div>
 <div id="biz-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--bg);border-radius:var(--radius-lg);padding:20px;width:100%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
     <div class="section-label" style="margin-bottom:14px;">Edit business / role</div>
@@ -646,6 +729,7 @@ let nextId = 1;
 let selectedBiz = null;
 let planData = [];
 let calendarEvents = [];
+let tomorrowEvents = [];
 let lastCheckinOutput = "";
 let apiKey = localStorage.getItem("dcc_api_key") || "";
 let recognition = null;
@@ -784,9 +868,17 @@ async function loadCalendar() {
   try {
     const res = await fetch(CALENDAR_URL);
     if (!res.ok) throw new Error("HTTP " + res.status);
-    calendarEvents = await res.json();
+    const data = await res.json();
+    // Handle both old format (array) and new format ({today, tomorrow})
+    if (Array.isArray(data)) {
+      calendarEvents = data;
+      tomorrowEvents = [];
+    } else {
+      calendarEvents = data.today || [];
+      tomorrowEvents = data.tomorrow || [];
+    }
     renderCalStrip();
-    setCalStatus("Connected — " + calendarEvents.length + " event" + (calendarEvents.length!==1?"s":"") + " today", "connected");
+    setCalStatus("Connected — " + calendarEvents.length + " event" + (calendarEvents.length!==1?"s":"") + " today" + (tomorrowEvents.length ? `, ${tomorrowEvents.length} tomorrow` : ""), "connected");
   } catch(e) {
     setCalStatus("Could not load calendar. Check your connection.", "error");
   }
@@ -912,19 +1004,22 @@ function selectBiz(i) { setFilter(selectedBiz === i ? null : i); }
 function renderTasks() {
   const filtered = selectedBiz !== null ? tasks.filter(t => t.biz === selectedBiz) : tasks;
   const list = document.getElementById("task-list");
+  const bizColors = ["var(--blue-dark)","var(--green-dark)","var(--coral-dark)","var(--pink-dark)","var(--text3)","#533AB7"];
   list.innerHTML = filtered.length ? filtered.map(t => `
     <div class="task-item">
-      <div class="task-stripe stripe-${t.biz}"></div>
+      <div class="task-stripe stripe-${Math.min(t.biz, 5)}"></div>
       <input type="checkbox" class="task-cb" ${t.done?"checked":""} onchange="toggleTask(${t.id})" />
       <div style="flex:1;min-width:0;">
         <div class="task-text ${t.done?"done":""}">${t.text}${t.rolledOver?` <span style="font-size:10px;color:var(--text3);margin-left:4px;">rolled over</span>`:""}
         </div>
-        <div class="task-biz" style="color:${["var(--blue-dark)","var(--green-dark)","var(--coral-dark)","var(--pink-dark)"][t.biz]};font-weight:500;">${BUSINESSES[t.biz].short}</div>
+        ${t.notes ? `<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${t.notes}</div>` : ""}
+        <div class="task-biz" style="color:${bizColors[t.biz]||"var(--text3)"};font-weight:500;">${BUSINESSES[t.biz]?.short||""}</div>
       </div>
       ${t.fromCal ? '<span class="badge b-cal">Calendar</span>' : `<span class="badge b-${t.pri}">${t.pri}</span>`}
+      <button onclick="openTaskNotes(${t.id})" style="background:none;border:none;cursor:pointer;color:${t.notes?'var(--blue-dark)':'var(--text3)'};font-size:12px;padding:2px 4px;flex-shrink:0;" title="${t.notes?'Edit notes':'Add notes'}">📝</button>
       <button class="task-del" onclick="deleteTask(${t.id})" title="Delete">×</button>
     </div>`).join("") :
-    `<div class="empty-state">No tasks${selectedBiz !== null ? " for " + BUSINESSES[selectedBiz].short : ""}.<br>Add one below or use the morning check-in.</div>`;
+    `<div class="empty-state">No tasks${selectedBiz !== null ? " for " + BUSINESSES[selectedBiz]?.short : ""}.<br>Add one below or use the morning check-in.</div>`;
   const total = tasks.length, done = tasks.filter(t => t.done).length;
   document.getElementById("stat-total").textContent = total;
   document.getElementById("stat-done").textContent = done;
@@ -934,7 +1029,7 @@ function renderTasks() {
 }
 
 function switchTab(tab) {
-  const tabs = ["checkin","tasks","plan","lab","wrap"];
+  const tabs = ["checkin","tasks","plan","lab","wrap","review"];
   document.querySelectorAll(".tab").forEach((t,i)=>t.classList.toggle("active",tabs[i]===tab));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   document.getElementById("view-"+tab).classList.add("active");
@@ -1057,14 +1152,15 @@ CRITICAL RULES:
 - Schedule EVERY task from the task list — do not skip any
 - Schedule EVERY item mentioned in the morning check-in priorities — do not skip any
 - Fixed calendar events go at their exact times and cannot be moved
+- For fixed calendar events (from the calendar), set "fromCal": true in the block
+- For all AI-scheduled task blocks, set "fromCal": false
 - Start around 8am, end by 6pm
-- Combine very small tasks into one block if needed to fit everything
-- There is no block limit — use as many blocks as needed to fit everything
+- There is no block limit — use as many blocks as needed
 
-Each block must have exactly: { "time": "9:00am–10:00am", "title": "short title max 5 words", "desc": "one sentence", "biz": 0 }
-where biz is: ${bizIndex}, ${adminIndex}=break or admin
+Each block: { "time": "9:00am–10:00am", "title": "short title", "desc": "one sentence", "biz": 0, "fromCal": false }
+biz values: ${bizIndex}, ${adminIndex}=break or admin
 
-Output ONLY the raw JSON array, no markdown, no explanation. Ensure the JSON is complete and valid.`;
+Output ONLY the raw JSON array, no markdown. Ensure JSON is complete and valid.`;
 
   try {
     const raw = await callClaude(sys, `${calFixed}\n\nTask list (schedule ALL of these):\n${taskList}${checkinContext}`, 2500);
@@ -1095,11 +1191,11 @@ function renderPlan() {
   const grid=document.getElementById("plan-grid");
   if(!planData.length){grid.innerHTML=`<div class="empty-state">No plan generated.</div>`;return;}
   grid.innerHTML=planData.map(b=>`
-    <div class="time-block">
+    <div class="time-block" style="${b.fromCal?'opacity:0.7;':''}">
       <div class="time-bar bar-${b.biz}"></div>
       <div class="time-slot">${b.time}</div>
       <div class="time-content">
-        <div class="time-title">${b.title}</div>
+        <div class="time-title">${b.title}${b.fromCal?' <span style="font-size:10px;color:var(--blue-dark);background:var(--blue-light);padding:1px 6px;border-radius:8px;margin-left:4px;">on calendar</span>':''}</div>
         <div class="time-desc">${b.desc}</div>
       </div>
     </div>`).join("");
@@ -1123,48 +1219,72 @@ function parseTimeBlock(timeStr, baseDate) {
   return { start: toDate(parts[0]), end: toDate(parts[1] || parts[0]) };
 }
 
-// Check if a time block overlaps with any existing calendar event
+// Check if a time block is already on the calendar (title match OR significant time overlap)
 function overlapsCalendar(block, baseDate) {
   if (!calendarEvents.length) return false;
+
+  // Check for title match first (most reliable duplicate detection)
+  const blockTitle = block.title.toLowerCase().trim();
+  const titleMatch = calendarEvents.some(ev => {
+    const evTitle = (ev.title || "").toLowerCase().trim();
+    return evTitle === blockTitle ||
+      evTitle.includes(blockTitle) ||
+      blockTitle.includes(evTitle);
+  });
+  if (titleMatch) return true;
+
+  // Only flag time overlap if the calendar event takes up most of the same slot
   const { start, end } = parseTimeBlock(block.time, baseDate);
   if (!start || !end) return false;
+  const blockDuration = end - start;
+
   return calendarEvents.some(ev => {
     const evStart = new Date(ev.start);
     const evEnd = new Date(ev.end);
-    // Overlap if start < evEnd AND end > evStart
-    return start < evEnd && end > evStart;
+    // Only count as overlap if events share more than 50% of the block's duration
+    const overlapStart = Math.max(start, evStart);
+    const overlapEnd = Math.min(end, evEnd);
+    const overlapMs = overlapEnd - overlapStart;
+    return overlapMs > 0 && overlapMs >= blockDuration * 0.5;
   });
 }
 
 function getNonDuplicates() {
-  const today = new Date();
-  return planData.filter(b => !overlapsCalendar(b, today));
+  // Simply exclude blocks already on the calendar (tagged by AI or matched by title)
+  return planData.filter(b => {
+    if (b.fromCal) return false; // AI tagged it as a calendar event
+    // Also check title against calendar as a safety net
+    const title = b.title.toLowerCase().trim();
+    return !calendarEvents.some(ev => {
+      const evTitle = (ev.title||"").toLowerCase().trim();
+      return evTitle === title || (evTitle.length > 3 && title.includes(evTitle));
+    });
+  });
 }
 
 function showPickEvents() {
-  const today = new Date();
   const list = document.getElementById("event-picker-list");
   const nonDups = getNonDuplicates();
   const skipped = planData.length - nonDups.length;
+  const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
 
   list.innerHTML = planData.map((b, i) => {
-    const overlaps = overlapsCalendar(b, today);
+    const isCalEvent = b.fromCal || !nonDups.includes(b);
     const bizNames = BUSINESSES.map(bz => bz.short);
     bizNames.push("Admin/break");
-    const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
-    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);${overlaps?"opacity:0.45":""}">
-      <input type="checkbox" id="pick-${i}" ${overlaps?"disabled":"checked"} style="width:16px;height:16px;cursor:${overlaps?"not-allowed":"pointer"};" />
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);${isCalEvent?"opacity:0.45":""}">
+      <input type="checkbox" id="pick-${i}" ${isCalEvent?"disabled":"checked"} style="width:16px;height:16px;cursor:${isCalEvent?"not-allowed":"pointer"};" />
       <div style="width:3px;height:32px;border-radius:2px;background:${colors[b.biz]||"var(--text3)"};flex-shrink:0;"></div>
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:500;">${b.title}</div>
         <div style="font-size:11px;color:var(--text2);">${b.time} · ${bizNames[b.biz]||"Other"}</div>
       </div>
-      ${overlaps ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--amber-light);color:var(--amber-dark);flex-shrink:0;">Already on calendar</span>' : ""}
+      ${isCalEvent ? '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--blue-light);color:var(--blue-dark);flex-shrink:0;">On calendar</span>' : ""}
     </div>`;
   }).join("");
 
   if (skipped > 0) {
-    list.innerHTML += `<p style="font-size:12px;color:var(--text3);margin-top:6px;">${skipped} event${skipped!==1?"s":""} grayed out — already exist on your calendar and won't be pushed.</p>`;
+    list.innerHTML += `<p style="font-size:12px;color:var(--text3);margin-top:6px;">${skipped} block${skipped!==1?"s":""} already on your calendar — grayed out and excluded from push.</p>`;
   }
 
   document.getElementById("event-picker").style.display = "block";
@@ -1173,16 +1293,15 @@ function showPickEvents() {
 
 function toggleAllEvents(checked) {
   planData.forEach((b, i) => {
-    const today = new Date();
-    if (!overlapsCalendar(b, today)) {
+    if (!b.fromCal) {
       const cb = document.getElementById("pick-" + i);
       if (cb) cb.checked = checked;
     }
   });
 }
 
-function toICS(events) {
-  const today = new Date();
+function toICS(events, baseDate) {
+  const day = baseDate || new Date();
   const bizNames = BUSINESSES.map(b => b.short);
   bizNames.push("Admin/break");
   const lines = [
@@ -1193,7 +1312,7 @@ function toICS(events) {
     "METHOD:PUBLISH"
   ];
   events.forEach(ev => {
-    const { start, end } = parseTimeBlock(ev.time, today);
+    const { start, end } = parseTimeBlock(ev.time, day);
     if (!start || !end) return;
     const fmtDate = d => d.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
     lines.push(
@@ -1210,22 +1329,25 @@ function toICS(events) {
   return lines.join("\r\n");
 }
 
-function downloadICS(events, label) {
+function downloadICS(events, label, baseDate) {
   if (!events.length) {
     showToast("No events to push — all blocks already exist on your calendar.");
     return;
   }
-  const ics = toICS(events);
+  const ics = toICS(events, baseDate);
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `day-plan-${todayStr()}.ics`;
+  const dateStr = baseDate ? baseDate.toISOString().split("T")[0] : todayStr();
+  a.download = `day-plan-${dateStr}.ics`;
   a.click();
   URL.revokeObjectURL(url);
   showToast(`${events.length} event${events.length!==1?"s":""} downloaded — open the .ics file to add to your calendar.`);
-  document.getElementById("push-note").textContent = `${events.length} event${events.length!==1?"s":""} exported. Double-click the downloaded file to import.`;
-  document.getElementById("event-picker").style.display = "none";
+  if (label !== "tomorrow") {
+    document.getElementById("push-note").textContent = `${events.length} event${events.length!==1?"s":""} exported. Double-click the downloaded file to import.`;
+    document.getElementById("event-picker").style.display = "none";
+  }
 }
 
 async function pushToCalendar(mode) {
@@ -1250,6 +1372,21 @@ let eodRecognition = null;
 let eodListening = false;
 
 function renderRolloverList() {
+  // Show tomorrow's calendar events
+  const tmrwSection = document.getElementById("tmrw-cal-section");
+  const tmrwList = document.getElementById("tmrw-cal-list");
+  if (tomorrowEvents.length) {
+    tmrwSection.style.display = "block";
+    tmrwList.innerHTML = tomorrowEvents.map(e => `
+      <div class="cal-event">
+        <span class="cal-dot"></span>
+        <span class="cal-time">${fmt(e.start)} – ${fmt(e.end)}</span>
+        <span class="cal-name">${e.title||"Untitled event"}</span>
+      </div>`).join("");
+  } else {
+    tmrwSection.style.display = tomorrowEvents !== undefined ? "block" : "none";
+    if (tmrwList) tmrwList.innerHTML = `<div style="font-size:13px;color:var(--text3);padding:6px 0;">No events scheduled for tomorrow.</div>`;
+  }
   // Render plan reconciliation
   const savedPlan = localStorage.getItem("dcc_today_plan");
   const reconcileSection = document.getElementById("plan-reconcile-section");
@@ -1343,7 +1480,10 @@ Be warm but direct. Keep it concise.`;
     eodText.textContent = response;
     localStorage.setItem("dcc_tomorrow_context", response);
 
-    // If there's a brain dump, extract new ideas/action items as tasks
+    // Generate tomorrow's day plan in parallel
+    generateTomorrowPlan(completedList, incompleteList, planReconcileContext, dump);
+
+    // Extract new ideas from brain dump
     if (dump) {
       extractNewTasks(dump, planReconcileContext, completedList, incompleteList);
     }
@@ -1470,7 +1610,9 @@ function startNewDay() {
 
   // Reset UI state
   localStorage.removeItem("dcc_today_plan");
+  localStorage.removeItem("dcc_tomorrow_plan");
   planData = [];
+  tomorrowPlanData = [];
   lastCheckinOutput = "";
   document.getElementById("brain-dump").value = "";
   document.getElementById("ai-out").style.display = "none";
@@ -1478,6 +1620,7 @@ function startNewDay() {
   document.getElementById("eod-out").style.display = "none";
   document.getElementById("plan-reconcile-section").style.display = "none";
   document.getElementById("eod-new-tasks").style.display = "none";
+  document.getElementById("tmrw-plan-section").style.display = "none";
   eodExtractedTasks = [];
   document.getElementById("plan-grid").innerHTML = `<div class="empty-state">No day plan yet.<br>Run your morning check-in and tap "Turn this into my day plan."</div>`;
   document.getElementById("push-all-btn").style.display = "none";
@@ -1787,6 +1930,272 @@ function updateFilterPills() {
 document.addEventListener("click", e => {
   const modal = document.getElementById("biz-edit-modal");
   if (modal && modal.classList.contains("open") && e.target === modal) closeBizEdit();
+});
+
+// ── TOMORROW'S PLAN ───────────────────────────────────────────
+let tomorrowPlanData = [];
+
+async function generateTomorrowPlan(completedList, incompleteList, planCtx, dump) {
+  const section = document.getElementById("tmrw-plan-section");
+  const grid = document.getElementById("tmrw-plan-grid");
+  section.style.display = "block";
+  grid.innerHTML = `<div class="empty-state"><span class="loading-dots"><span></span><span></span><span></span></span><br><br>Building tomorrow's plan...</div>`;
+
+  // Tasks rolling over
+  const incomplete = tasks.filter(t => !t.done);
+  const rollingTasks = incomplete.filter(t => {
+    const cb = document.getElementById("rollover-" + t.id);
+    return cb ? cb.checked : true;
+  });
+  const taskList = rollingTasks.map(t => `- [${BUSINESSES[t.biz]?.short||""}] ${t.text} (${t.pri})`).join("\n") || "No tasks rolling over.";
+
+  const calFixed = tomorrowEvents.length
+    ? "Tomorrow's fixed calendar events (do not move):\n" + tomorrowEvents.map(e => `- ${fmt(e.start)} – ${fmt(e.end)}: ${e.title||"Event"}`).join("\n")
+    : "No fixed calendar events tomorrow.";
+
+  const bizIndex = BUSINESSES.map((b,i) => `${i}=${b.short}`).join(", ");
+  const adminIndex = BUSINESSES.length;
+
+  const sys = `You are a time-block day planner building TOMORROW's schedule. Output a JSON array of time blocks.
+RULES: Schedule fixed calendar events first at exact times. Then schedule all rolling tasks. Start ~8am, end ~6pm.
+Each block: { "time": "9:00am–10:00am", "title": "short title", "desc": "one sentence", "biz": 0 }
+biz values: ${bizIndex}, ${adminIndex}=break/admin
+Output ONLY the raw JSON array.`;
+
+  const context = `${calFixed}\n\nRolling tasks for tomorrow:\n${taskList}${dump ? `\n\nContext from today's brain dump:\n${dump}` : ""}`;
+
+  try {
+    const raw = await callClaude(sys, context, 2000);
+    let clean = raw.replace(/```json|```/g,"").trim();
+    if (!clean.endsWith("]")) {
+      const lastObj = clean.lastIndexOf("}");
+      clean = clean.substring(0, lastObj + 1) + "]";
+    }
+    tomorrowPlanData = JSON.parse(clean);
+    localStorage.setItem("dcc_tomorrow_plan", JSON.stringify({ plan: tomorrowPlanData }));
+    renderTomorrowPlan();
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state">Couldn't generate tomorrow's plan: ${e.message}</div>`;
+  }
+}
+
+function renderTomorrowPlan() {
+  const grid = document.getElementById("tmrw-plan-grid");
+  const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+  if (!tomorrowPlanData.length) { grid.innerHTML = `<div class="empty-state">No plan generated.</div>`; return; }
+  grid.innerHTML = tomorrowPlanData.map(b => `
+    <div class="time-block">
+      <div class="time-bar" style="background:${colors[b.biz]||"var(--text3)"}"></div>
+      <div class="time-slot">${b.time}</div>
+      <div class="time-content">
+        <div class="time-title">${b.title}</div>
+        <div class="time-desc">${b.desc}</div>
+      </div>
+    </div>`).join("");
+}
+
+function showTmrwPicker() {
+  const picker = document.getElementById("tmrw-event-picker");
+  const list = document.getElementById("tmrw-picker-list");
+  const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+  list.innerHTML = tomorrowPlanData.map((b, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);">
+      <input type="checkbox" id="tmrw-pick-${i}" checked style="width:15px;height:15px;" />
+      <div style="width:3px;height:28px;border-radius:2px;background:${colors[b.biz]||"var(--text3)"};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${b.title}</div>
+        <div style="font-size:11px;color:var(--text2);">${b.time}</div>
+      </div>
+    </div>`).join("");
+  picker.style.display = "block";
+}
+
+function pushTomorrowPlan(mode) {
+  if (!tomorrowPlanData.length) return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  let toExport = tomorrowPlanData;
+  if (mode === "picked") {
+    toExport = tomorrowPlanData.filter((b,i) => {
+      const cb = document.getElementById("tmrw-pick-"+i);
+      return cb && cb.checked;
+    });
+  }
+  // Check for overlaps with tomorrow's calendar
+  const nonDups = toExport.filter(b => {
+    const { start, end } = parseTimeBlock(b.time, tomorrow);
+    if (!start || !end) return true;
+    return !tomorrowEvents.some(ev => {
+      const evS = new Date(ev.start), evE = new Date(ev.end);
+      return start < evE && end > evS;
+    });
+  });
+  const skipped = toExport.length - nonDups.length;
+  if (skipped > 0) showToast(`Skipping ${skipped} block${skipped!==1?"s":""} already on tomorrow's calendar.`);
+  downloadICS(nonDups.map(b => ({ ...b, time: b.time })), "tomorrow", tomorrow);
+}
+
+// ── WEEKLY REVIEW ─────────────────────────────────────────────
+let reviewRecognition = null;
+let reviewListening = false;
+let reviewExtractedTasks = [];
+
+async function runWeeklyReview() {
+  const dump = document.getElementById("review-dump").value.trim();
+  if (!dump) { alert("Add your week brain dump first!"); return; }
+  if (reviewListening && reviewRecognition) reviewRecognition.stop();
+  const out = document.getElementById("review-out");
+  const reviewText = document.getElementById("review-text");
+  out.style.display = "block";
+  reviewText.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`;
+  document.getElementById("snapshot-out").style.display = "none";
+
+  const sys = `You are an AI chief of staff conducting a weekly review for an entrepreneur with ${BUSINESSES.length} businesses:
+${bizContext()}
+
+Given their week brain dump, provide:
+1. This week's wins — specific and concrete per business
+2. What fell short or stalled — honest assessment
+3. Key patterns or insights across businesses
+4. Next week's top 5 priorities — specific, ranked, with business label
+5. One strategic question to sit with over the weekend
+
+Be sharp and direct. This is a zoom-out, not a daily wrap.`;
+
+  try {
+    const response = await callClaude(sys, `Week brain dump:\n\n${dump}`, 1200);
+    reviewText.textContent = response;
+    localStorage.setItem("dcc_weekly_review_" + todayStr(), response);
+    // Extract action items
+    extractReviewTasks(dump);
+  } catch(e) {
+    reviewText.textContent = "Error: " + e.message;
+  }
+}
+
+async function extractReviewTasks(dump) {
+  const sys = `Extract concrete action items for next week from this brain dump. Output JSON array only:
+[{ "text": "specific task", "biz": 0, "pri": "high|med|low" }]
+biz: ${BUSINESSES.map((b,i)=>`${i}=${b.short}`).join(", ")}
+Return [] if none. No markdown.`;
+  try {
+    const raw = await callClaude(sys, dump, 600);
+    reviewExtractedTasks = JSON.parse(raw.replace(/```json|```/g,"").trim());
+    if (reviewExtractedTasks.length) renderReviewTasks();
+  } catch(e) { reviewExtractedTasks = []; }
+}
+
+function renderReviewTasks() {
+  const container = document.getElementById("review-new-tasks");
+  const list = document.getElementById("review-new-tasks-list");
+  if (!reviewExtractedTasks.length) { container.style.display = "none"; return; }
+  const colors = ["var(--blue)","var(--green)","var(--coral)","var(--pink)","var(--text3)","#7F77DD"];
+  container.style.display = "block";
+  list.innerHTML = reviewExtractedTasks.map((t,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);">
+      <input type="checkbox" id="reviewtask-${i}" checked style="width:16px;height:16px;" />
+      <div style="width:3px;height:28px;border-radius:2px;background:${colors[t.biz]||"var(--text3)"};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;">${t.text}</div>
+        <div style="font-size:11px;color:var(--text2);">${BUSINESSES[t.biz]?.short||"General"} · ${t.pri}</div>
+      </div>
+      <span class="badge b-${t.pri}">${t.pri}</span>
+    </div>`).join("");
+}
+
+function addAllReviewTasks() {
+  reviewExtractedTasks.forEach((t,i) => {
+    const cb = document.getElementById("reviewtask-"+i);
+    if (cb && cb.checked) {
+      tasks.push({ id: nextId++, text: t.text, biz: t.biz < BUSINESSES.length ? t.biz : 0, pri: t.pri||"med", done: false });
+    }
+  });
+  saveTasks(); renderTasks(); renderBizGrid();
+  document.getElementById("review-new-tasks").style.display = "none";
+  showToast("Next week's tasks added!");
+}
+
+// ── WEEKLY SNAPSHOT ───────────────────────────────────────────
+async function generateWeeklySnapshot() {
+  const out = document.getElementById("snapshot-out");
+  const snapText = document.getElementById("snapshot-text");
+  out.style.display = "block";
+  snapText.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`;
+
+  // Gather completed tasks from this week
+  const completed = tasks.filter(t => t.done).map(t => `- [${BUSINESSES[t.biz]?.short}] ${t.text}`).join("\n") || "None recorded.";
+  const pending = tasks.filter(t => !t.done).map(t => `- [${BUSINESSES[t.biz]?.short}] ${t.text} (${t.pri})`).join("\n") || "None.";
+  const reviewDump = document.getElementById("review-dump").value.trim();
+
+  const sys = `Generate a concise weekly snapshot for an entrepreneur with ${BUSINESSES.length} businesses:
+${bizContext()}
+
+Format:
+📊 WEEK SNAPSHOT — [date range]
+[For each business: one line on status/momentum]
+✅ Completed this week: [count + highlights]  
+⏳ Carried forward: [count + top items]
+🎯 Next week focus: [top 3 in one line each]
+
+Keep it tight — this is a at-a-glance summary, not a report.`;
+
+  const msg = `Completed tasks:\n${completed}\n\nPending tasks:\n${pending}${reviewDump ? `\n\nWeek notes:\n${reviewDump}` : ""}`;
+
+  try {
+    const response = await callClaude(sys, msg, 800);
+    snapText.textContent = response;
+  } catch(e) {
+    snapText.textContent = "Error: " + e.message;
+  }
+}
+
+function toggleReviewVoice() {
+  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) { alert("Voice not supported. Try Chrome."); return; }
+  if (!reviewRecognition) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    reviewRecognition = new SR();
+    reviewRecognition.continuous = true; reviewRecognition.interimResults = true; reviewRecognition.lang = "en-US";
+    let finalT = "", existingT = "";
+    reviewRecognition.onstart = () => { reviewListening=true; existingT=document.getElementById("review-dump").value; finalT=""; document.getElementById("review-mic-btn").classList.add("active"); document.getElementById("review-voice-status").innerHTML=`<span class="pulse"></span> Listening...`; };
+    reviewRecognition.onresult = (e) => { let interim=""; finalT=""; for(let i=0;i<e.results.length;i++){if(e.results[i].isFinal)finalT+=e.results[i][0].transcript+" ";else interim+=e.results[i][0].transcript;} document.getElementById("review-dump").value=existingT+(existingT&&finalT?"\n":"")+finalT+interim; };
+    reviewRecognition.onend = () => { reviewListening=false; document.getElementById("review-mic-btn").classList.remove("active"); document.getElementById("review-voice-status").innerHTML=""; if(finalT.trim())document.getElementById("review-dump").value=existingT+(existingT?"\n":"")+finalT.trim(); };
+    reviewRecognition.onerror = (e) => { reviewListening=false; document.getElementById("review-mic-btn").classList.remove("active"); document.getElementById("review-voice-status").innerHTML=`<span style="color:var(--coral-dark);">Mic error: ${e.error}</span>`; };
+  }
+  if (reviewListening) reviewRecognition.stop(); else reviewRecognition.start();
+}
+
+// ── TASK NOTES ────────────────────────────────────────────────
+let editingTaskId = -1;
+
+function openTaskNotes(id) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById("task-notes-name").textContent = t.text;
+  document.getElementById("task-notes-input").value = t.notes || "";
+  document.getElementById("task-notes-modal").classList.add("open");
+  setTimeout(() => document.getElementById("task-notes-input").focus(), 50);
+}
+
+function saveTaskNotes() {
+  const t = tasks.find(t => t.id === editingTaskId);
+  if (t) {
+    t.notes = document.getElementById("task-notes-input").value.trim();
+    saveTasks();
+    renderTasks();
+    showToast("Notes saved!");
+  }
+  closeTaskNotes();
+}
+
+function closeTaskNotes() {
+  document.getElementById("task-notes-modal").classList.remove("open");
+  editingTaskId = -1;
+}
+
+document.addEventListener("click", e => {
+  const modal = document.getElementById("task-notes-modal");
+  if (modal && modal.classList.contains("open") && e.target === modal) closeTaskNotes();
 });
 
 // ── TOAST ─────────────────────────────────────────────────────
