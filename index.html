@@ -399,7 +399,7 @@
       <div id="cal-events-list"></div>
     </div>
     <div class="card">
-      <p class="checkin-prompt"><span id="checkin-greeting">Good morning!</span> <strong>What's on your plate today?</strong> Type or use the mic to brain dump — anything not already on your calendar.</p>
+      <p class="checkin-prompt"><span id="checkin-greeting">Good morning!</span> <strong id="checkin-subprompt">What's on your plate?</strong> Type or use the mic to brain dump — anything not already on your calendar.</p>
       <div class="textarea-wrap">
         <textarea id="brain-dump" placeholder="e.g. Follow up with Marcus on the novation deal... research 501c3 filing requirements... prep for tomorrow's TLWB session..."></textarea>
         <button class="mic-btn" id="mic-btn" onclick="toggleVoice()" title="Click to dictate">
@@ -419,10 +419,26 @@
           <div class="ai-label">AI chief of staff</div>
           <div class="ai-content" id="ai-text"></div>
         </div>
-        <div class="btn-row">
-          <button onclick="switchTab('plan');generatePlan()">Turn this into my day plan ↗</button>
-          <button onclick="openLabWithInsight()">Explore in strategic lab ↗</button>
-          <button onclick="switchTab('tasks')">View tasks ↗</button>
+
+        <!-- Correction input -->
+        <div style="margin-top:10px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <p style="font-size:12px;color:var(--text2);margin-bottom:8px;">Something wrong? Tell me what to fix:</p>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="correction-input" placeholder='e.g. "Move the Marcus deal to Real estate" or "Re-prioritize 501c3 as high"' style="flex:1;font-family:var(--font);font-size:13px;padding:8px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);" onkeydown="if(event.key==='Enter')applyCorrection()" />
+            <button onclick="applyCorrection()" style="white-space:nowrap;">Fix it ↗</button>
+          </div>
+        </div>
+
+        <!-- Plan target choice -->
+        <div style="margin-top:12px;">
+          <p style="font-size:12px;color:var(--text2);margin-bottom:8px;">Build time blocks for:</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="plan-today-btn" class="primary" onclick="setPlanTarget('today');switchTab('plan');generatePlan()" style="font-size:13px;">Plan today ↗</button>
+            <button id="plan-tmrw-btn" onclick="setPlanTarget('tomorrow');switchTab('plan');generatePlan()" style="font-size:13px;">Plan tomorrow ↗</button>
+            <button onclick="openLabWithInsight()" style="font-size:13px;">Explore in lab ↗</button>
+            <button onclick="switchTab('tasks')" style="font-size:13px;">View tasks ↗</button>
+          </div>
+          <p id="plan-target-note" style="font-size:11px;color:var(--text3);margin-top:6px;"></p>
         </div>
       </div>
     </div>
@@ -728,6 +744,7 @@ let tasks = [];
 let nextId = 1;
 let selectedBiz = null;
 let planData = [];
+let planTarget = "today"; // "today" or "tomorrow"
 let calendarEvents = [];
 let tomorrowEvents = [];
 let lastCheckinOutput = "";
@@ -753,6 +770,21 @@ function init() {
   document.getElementById("datebadge").textContent = now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   const h = now.getHours();
   document.getElementById("checkin-greeting").textContent = (h<12?"Good morning":h<17?"Good afternoon":"Good evening") + (USER_NAME ? ", " + USER_NAME : "") + "!";
+
+  // Time-aware subprompt and default plan target
+  const subprompt = document.getElementById("checkin-subprompt");
+  if (h < 12) {
+    subprompt.textContent = "What's on your plate today?";
+    planTarget = "today";
+  } else if (h < 15) {
+    subprompt.textContent = "Catching up — what needs to happen today?";
+    planTarget = "today";
+  } else {
+    subprompt.textContent = "Planning ahead — what needs to happen tomorrow?";
+    planTarget = "tomorrow";
+    // Auto-highlight tomorrow button
+    setTimeout(() => updatePlanTargetUI(), 100);
+  }
   if (apiKey) document.getElementById("api-setup").style.display = "none";
   loadTasks();
   renderBizGrid();
@@ -1123,21 +1155,77 @@ function clearCheckin() {
   if (isListening && recognition) recognition.stop();
 }
 
+// ── PLAN TARGET ───────────────────────────────────────────────
+function setPlanTarget(target) {
+  planTarget = target;
+  updatePlanTargetUI();
+}
+
+function updatePlanTargetUI() {
+  const todayBtn = document.getElementById("plan-today-btn");
+  const tmrwBtn = document.getElementById("plan-tmrw-btn");
+  const note = document.getElementById("plan-target-note");
+  if (!todayBtn || !tmrwBtn) return;
+  if (planTarget === "tomorrow") {
+    todayBtn.classList.remove("primary");
+    tmrwBtn.classList.add("primary");
+    note.textContent = "Will use tomorrow's calendar events as anchors.";
+  } else {
+    todayBtn.classList.add("primary");
+    tmrwBtn.classList.remove("primary");
+    note.textContent = "Will use today's calendar events as anchors.";
+  }
+}
+
+// ── CORRECTION ────────────────────────────────────────────────
+async function applyCorrection() {
+  const input = document.getElementById("correction-input");
+  const correction = input.value.trim();
+  if (!correction) return;
+  if (!lastCheckinOutput) { showToast("Organize your brain dump first."); return; }
+
+  const aiText = document.getElementById("ai-text");
+  aiText.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`;
+  input.value = "";
+
+  const sys = `You are an AI chief of staff. The user has reviewed your organized brain dump and wants a correction. Apply their requested change to the existing output and return the FULL corrected version. Keep everything else exactly the same — only change what they asked for.
+
+The user runs ${BUSINESSES.length} businesses:
+${bizContext()}`;
+
+  const msg = `Current organized output:\n${lastCheckinOutput}\n\nUser correction request: "${correction}"\n\nReturn the full corrected output.`;
+
+  try {
+    const response = await callClaude(sys, msg, 1200);
+    lastCheckinOutput = response;
+    aiText.textContent = response;
+    showToast("Correction applied!");
+  } catch(e) {
+    aiText.textContent = lastCheckinOutput; // restore
+    showToast("Error: " + e.message);
+  }
+}
+
 // ── DAY PLAN ──────────────────────────────────────────────────
 async function generatePlan() {
   const grid=document.getElementById("plan-grid");
-  grid.innerHTML=`<div class="empty-state"><span class="loading-dots"><span></span><span></span><span></span></span><br><br>Building your day plan...</div>`;
+  const isTomorrow = planTarget === "tomorrow";
+  const planDate = isTomorrow ? (() => { const d = new Date(); d.setDate(d.getDate()+1); return d; })() : new Date();
+  const planLabel = isTomorrow ? "tomorrow" : "today";
+  const planEvents = isTomorrow ? tomorrowEvents : calendarEvents;
+
+  grid.innerHTML=`<div class="empty-state"><span class="loading-dots"><span></span><span></span><span></span></span><br><br>Building ${planLabel}'s plan...</div>`;
   document.getElementById("push-all-btn").style.display = "none";
   document.getElementById("push-pick-btn").style.display = "none";
   document.getElementById("push-note").textContent = "";
   const pending=tasks.filter(t=>!t.done);
-  const taskList=pending.map(t=>`- [${BUSINESSES[t.biz].short}] ${t.text} (${t.pri} priority)`).join("\n")||"No tasks added yet.";
-  const calFixed=calendarEvents.length
-    ?"Fixed calendar blocks (keep at their exact times, do not move):\n"+calendarEvents.map(e=>`- ${fmt(e.start)} – ${fmt(e.end)}: ${e.title||"Session"}`).join("\n")
-    :"No fixed calendar events today.";
+  const taskList=pending.map(t=>`- [${BUSINESSES[t.biz]?.short||""}] ${t.text} (${t.pri} priority)`).join("\n")||"No tasks added yet.";
+  const calFixed=planEvents.length
+    ?`Fixed calendar blocks for ${planLabel} (keep at their exact times, do not move):\n`+planEvents.map(e=>`- ${fmt(e.start)} – ${fmt(e.end)}: ${e.title||"Session"}`).join("\n")
+    :`No fixed calendar events ${planLabel}.`;
   const brainDump = document.getElementById("brain-dump").value.trim();
   const checkinContext = lastCheckinOutput
-    ? `\n\nLatest organized priorities from morning check-in (IMPORTANT: make sure every item mentioned here gets scheduled — do not drop any):\n${lastCheckinOutput}`
+    ? `\n\nLatest organized priorities from check-in (IMPORTANT: schedule ALL of these — do not drop any):\n${lastCheckinOutput}`
     : brainDump
       ? `\n\nRaw brain dump (schedule everything mentioned here):\n${brainDump}`
       : "";
@@ -1173,15 +1261,19 @@ Output ONLY the raw JSON array, no markdown. Ensure JSON is complete and valid.`
       clean = clean.substring(0, cutAt) + "]";
     }
     planData = JSON.parse(clean);
-    // Save today's plan so EOD can reconcile it
-    localStorage.setItem("dcc_today_plan", JSON.stringify({ date: todayStr(), plan: planData }));
+    // Store plan date so push uses the right date
+    planData._planDate = planDate.toISOString();
+    // Save today's plan so EOD can reconcile it (only for today's plan)
+    if (!isTomorrow) {
+      localStorage.setItem("dcc_today_plan", JSON.stringify({ date: todayStr(), plan: planData }));
+    }
     renderPlan();
     document.getElementById("push-all-btn").style.display = "inline-block";
     document.getElementById("push-pick-btn").style.display = "inline-block";
     document.getElementById("event-picker").style.display = "none";
-    document.getElementById("push-note").textContent = calendarEvents.length
-      ? `${calendarEvents.length} existing calendar event${calendarEvents.length!==1?"s":""} will be skipped automatically.`
-      : "Push all will export all time blocks as calendar events.";
+    document.getElementById("push-note").textContent = planEvents.length
+      ? `Planning ${planLabel} — ${planEvents.length} existing event${planEvents.length!==1?"s":""} on ${planLabel}'s calendar will be skipped.`
+      : `Planning ${planLabel} — no fixed calendar events found.`;
   } catch(e) {
     grid.innerHTML=`<div class="empty-state">Couldn't generate plan: ${e.message}</div>`;
   }
@@ -1352,18 +1444,20 @@ function downloadICS(events, label, baseDate) {
 
 async function pushToCalendar(mode) {
   if (!planData.length) return;
+  // Use the date the plan was generated for
+  const planDate = planData._planDate ? new Date(planData._planDate) : new Date();
 
   if (mode === "all") {
     const toExport = getNonDuplicates();
     const skipped = planData.length - toExport.length;
-    if (skipped > 0) showToast(`Skipping ${skipped} event${skipped!==1?"s":""} already on your calendar.`);
-    downloadICS(toExport, "all");
+    if (skipped > 0) showToast(`Skipping ${skipped} block${skipped!==1?"s":""} already on your calendar.`);
+    downloadICS(toExport, "all", planDate);
   } else if (mode === "picked") {
     const toExport = planData.filter((b, i) => {
       const cb = document.getElementById("pick-" + i);
       return cb && cb.checked && !cb.disabled;
     });
-    downloadICS(toExport, "picked");
+    downloadICS(toExport, "picked", planDate);
   }
 }
 
